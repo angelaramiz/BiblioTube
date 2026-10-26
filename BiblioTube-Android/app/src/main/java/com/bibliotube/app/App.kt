@@ -37,7 +37,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.bibliotube.app.api.ApiClient
@@ -320,6 +322,8 @@ fun SettingsTabs(
     onSync: () -> Unit,
     onSignOut: () -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     var sub by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -369,6 +373,11 @@ fun SettingsTabs(
             }
             3 -> Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("Logs", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = {
+                    clipboard.setText(AnnotatedString(logs.joinToString("\n")))
+                    Toast.makeText(context, "Logs copiados", Toast.LENGTH_LONG).show()
+                }) { Text("Copiar logs") }
                 Spacer(Modifier.height(8.dp))
                 logs.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
             }

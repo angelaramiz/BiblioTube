@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -254,16 +256,26 @@ fun VaultApp(
     }
 
     Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier.fillMaxWidth()
-                .statusBarsPadding()
-                .padding(16.dp)
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("BiblioTube", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "v${com.bibliotube.app.BuildConfig.VERSION_NAME} (${com.bibliotube.app.BuildConfig.VERSION_CODE}) · ${session.email}",
-                style = MaterialTheme.typography.bodySmall
-            )
+            Column(
+                Modifier.statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    "BiblioTube",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    "v${com.bibliotube.app.BuildConfig.VERSION_NAME} (${com.bibliotube.app.BuildConfig.VERSION_CODE}) · ${session.email}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                )
+            }
         }
         Box(Modifier.weight(1f)) {
             when (tab) {

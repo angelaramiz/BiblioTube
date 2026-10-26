@@ -1,6 +1,7 @@
 package com.bibliotube.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -161,13 +163,38 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
 fun VideoCard(v: VaultVideo, categories: List<Category>, onEdit: () -> Unit, onDelete: () -> Unit) {
     val catName = categories.firstOrNull { it.id == v.categoryId }?.nombre ?: "Sin categoria"
     val fmt = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text(v.titulo, style = MaterialTheme.typography.titleMedium)
-            Text("${v.plataforma} · $catName · prioridad ${v.prioridad}", style = MaterialTheme.typography.bodySmall)
-            if (v.descripcion.isNotBlank()) Text(v.descripcion, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-            Text("Guardado: ${fmt.format(Date(v.fechaGuardado))}", style = MaterialTheme.typography.bodySmall)
-            v.recordatorioAt?.let { Text("Recordatorio: ${fmt.format(Date(it))} (${v.recordatorioRepeat})", style = MaterialTheme.typography.bodySmall) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                v.titulo,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "${v.plataforma} · $catName · prioridad ${v.prioridad}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            if (v.descripcion.isNotBlank()) Text(
+                v.descripcion, style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Guardado: ${fmt.format(Date(v.fechaGuardado))}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            v.recordatorioAt?.let {
+                Text(
+                    "Recordatorio: ${fmt.format(Date(it))} (${v.recordatorioRepeat})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onEdit) { Text("Editar") }
                 TextButton(onClick = onDelete) { Text("Borrar") }

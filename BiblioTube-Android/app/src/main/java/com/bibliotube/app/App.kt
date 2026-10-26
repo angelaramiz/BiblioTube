@@ -21,6 +21,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -232,7 +233,19 @@ fun VaultApp(session: AuthSession, onSignOut: () -> Unit) {
                 ) {
                     Text("Ajustes", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    Text("Servidor: $serverUrl", style = MaterialTheme.typography.bodySmall)
+                    var urlDraft by remember(serverUrl) { mutableStateOf(serverUrl) }
+                    Text("Servidor", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = urlDraft, onValueChange = { urlDraft = it },
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Button(onClick = {
+                        serverUrl = urlDraft.trim()
+                        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                            .edit().putString("server_url", serverUrl).apply()
+                        log("Servidor: $serverUrl")
+                    }) { Text("Guardar servidor") }
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = { checkForUpdate(true) }, enabled = !isChecking) {
                         Text(if (isChecking) "Comprobando…" else "Buscar actualizaciones")

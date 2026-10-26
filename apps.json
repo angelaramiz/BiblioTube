@@ -1,0 +1,12 @@
+{
+  "apps": {
+    "bibliotube": {
+      "Name": "BiblioTube",
+      "Package": "com.bibliotube.app",
+      "SourceDir": "../BiblioTube-Android",
+      "ApkName": "bibliotube.apk",
+      "DbKey": "app_version_bibliotube",
+      "VersionEndpoint": "/api/app-version?app=bibliotube"
+    }
+  }
+}

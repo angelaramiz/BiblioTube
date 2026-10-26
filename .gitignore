@@ -1,0 +1,13 @@
+node_modules/
+server/.env
+.opencode/
+*.log
+# Android local
+BiblioTube-Android/local.properties
+BiblioTube-Android/.gradle/
+BiblioTube-Android/build/
+BiblioTube-Android/app/build/
+BiblioTube-Android/bt-downloader/build/
+# Keystore: NO commitear el original sin pensar (ver DEPLOY.md).
+# Haz backup seguro: sin este archivo no hay OTA para apps ya instaladas.
+BiblioTube-Android/debug.keystore

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BiblioTube — Descargar para Android</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 20px; line-height: 1.5; }
+  .card { border: 1px solid #8884; border-radius: 16px; padding: 24px; text-align: center; }
+  h1 { margin: 0 0 4px; }
+  .sub { opacity: .7; margin-bottom: 16px; }
+  .btn { display: inline-block; margin-top: 16px; padding: 14px 32px; border-radius: 999px;
+         background: #6750A4; color: #fff; text-decoration: none; font-weight: bold; font-size: 1.1em; }
+  .btn.disabled { background: #888; pointer-events: none; }
+  ol { text-align: left; }
+  .meta { font-size: .9em; opacity: .7; }
+  #error { color: #B3261E; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>BiblioTube</h1>
+    <p class="sub">Tu bóveda de videos: guarda, organiza y recuerda.</p>
+    <p id="version" class="meta">Consultando versión…</p>
+    <p id="error"></p>
+    <a id="dl" class="btn disabled" href="#">Descargar APK</a>
+    <p class="meta">Solo Android (ARM64) · instalación directa, sin tienda.</p>
+  </div>
+  <h2>Cómo instalar</h2>
+  <ol>
+    <li>Toca <strong>Descargar APK</strong> desde tu Android.</li>
+    <li>Si el sistema lo pide, permite <strong>instalar apps desconocidas</strong> para el navegador.</li>
+    <li>Abre el archivo descargado y toca <strong>Instalar</strong>.</li>
+    <li>Las actualizaciones llegan solas desde la app (Ajustes → Buscar actualizaciones).</li>
+  </ol>
+  <script>
+    fetch('/api/app-version?app=bibliotube')
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) throw new Error(j.error || 'sin versión publicada');
+        const v = j.data;
+        document.getElementById('version').textContent = 'Versión ' + v.versionName + ' (' + v.versionCode + ')';
+        const a = document.getElementById('dl');
+        const url = v.apkUrl.startsWith('/') ? v.apkUrl + '?t=' + Date.now() : v.apkUrl;
+        a.href = url;
+        a.classList.remove('disabled');
+      })
+      .catch(e => {
+        document.getElementById('version').textContent = 'Versión no disponible todavía.';
+        document.getElementById('error').textContent = String(e.message || e);
+      });
+  </script>
+</body>
+</html>

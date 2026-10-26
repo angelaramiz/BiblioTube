@@ -1,0 +1,12 @@
+{
+  "apps": {
+    "miapp": {
+      "Name": "Mi App",
+      "Package": "com.ejemplo.miapp",
+      "SourceDir": "../MiApp-Android",
+      "ApkName": "miapp.apk",
+      "DbKey": "app_version_miapp",
+      "VersionEndpoint": "/api/app-version?app=miapp"
+    }
+  }
+}

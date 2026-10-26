@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: bibliotube-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: SUPABASE_URL
+        sync: false # completar en el dashboard de Render
+      - key: SUPABASE_ANON_KEY
+        sync: false # publishable key (RLS). Nunca la service_role
+      - key: SUPABASE_KEY
+        sync: false # misma publishable (lecturas OTA). service_role solo si se necesita escritura server-side

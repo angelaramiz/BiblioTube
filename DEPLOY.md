@@ -31,6 +31,26 @@ dominio de Render como `server_url`.
 
 ## 3. Publicar una versión (cada release)
 
+Pipeline único (recomendado):
+
+```powershell
+.\scripts\publish-release.ps1 -VersionCode 3 -VersionName "1.0.2"
+```
+
+Orquesta: versionado en gradle → `assembleRelease` → verifica firma y
+versión del APK (apksigner/aapt) → copia a `server/public/` → PATCH a
+Supabase → commit+push → hook de Render → espera hasta confirmar versión
+y APK descargable (timeout 12+5 min).
+
+Requiere `.agents/publish.local` (gitignored) con:
+
+```text
+SUPABASE_SERVICE_KEY=<service_role de Project Settings -> API>
+```
+
+La publishable key solo lee; sin service_role el pipeline se detiene antes
+del push. Alternativa manual:
+
 1. Bump `versionCode`/`versionName` en `BiblioTube-Android/app/build.gradle.kts`.
 2. `.\gradlew.bat assembleRelease` (en `BiblioTube-Android/`).
 3. Copiar APK → `server/public/bibliotube.apk` (o `release.ps1 -AppsJson ./apps.json ...`).
@@ -38,12 +58,11 @@ dominio de Render como `server_url`.
    (`versionCode`, `versionName`, `apkUrl: "/public/bibliotube.apk"`).
 5. `git add server/public/bibliotube.apk` + commit + push.
 6. Dispara el redeploy inmediato: `.\scripts\deploy-render.ps1`
-   (usa el deploy hook de `.agents/render-deploy-hook.local`, gitignored —
-   no esperar al auto-deploy). Verifica el estado en el dashboard de Render.
+   (hook gitignored — no esperar al auto-deploy).
 7. Verificar: `/api/app-version?app=bibliotube` responde lo nuevo y el APK
    descarga (HTTP 200).
-7. La app instalada lo detecta al abrir (o Ajustes → Buscar actualizaciones).
-   Para probar: instala un APK viejo encima del flujo una vez.
+8. La app instalada lo detecta al abrir (o Ajustes → Buscar actualizaciones).
+   Para probar: instala un APK viejo y sigue el flujo una vez.
 
 ## 4. Apuntar la app al servidor
 

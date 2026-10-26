@@ -13,8 +13,8 @@ android {
         applicationId = "com.bibliotube.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
         buildConfigField("String", "SUPABASE_URL", "\"https://buccrasmylvkzymbhfwx.supabase.co\"")
         // Publishable key: publica por diseno (RLS la protege). Nunca la service_role aqui.
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_By0vWY199stSDffMAtfvRw_Bb4QxrNs\"")

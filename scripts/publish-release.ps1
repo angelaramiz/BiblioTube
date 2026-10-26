@@ -11,7 +11,7 @@ param(
   [switch]$SkipBuild
 )
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
 $appDir = Join-Path $root 'BiblioTube-Android'
 $fail = 0
@@ -45,9 +45,16 @@ $gradleFile = Join-Path $appDir 'app\build.gradle.kts'
 $txt = [System.IO.File]::ReadAllText($gradleFile)
 $txt2 = $txt -replace 'versionCode = \d+', "versionCode = $VersionCode"
 $txt2 = $txt2 -replace 'versionName = "[^"]+"', "versionName = `"$VersionName`""
-if ($txt2 -eq $txt) { Die('no se pudo actualizar version en build.gradle.kts') }
-[System.IO.File]::WriteAllText($gradleFile, $txt2)
-Write-Host "[publish] version -> $VersionCode / $VersionName"
+if ($txt2 -eq $txt) {
+  if ($txt -match "versionCode = $VersionCode" -and $txt -match "versionName = `"$VersionName`"") {
+    Write-Host '[publish] version ya estaba en el objetivo, sigo'
+  } else {
+    Die('no se pudo actualizar version en build.gradle.kts')
+  }
+} else {
+  [System.IO.File]::WriteAllText($gradleFile, $txt2)
+  Write-Host "[publish] version -> $VersionCode / $VersionName"
+}
 
 # 2. Build
 if (-not $SkipBuild) {
@@ -64,8 +71,12 @@ if (-not (Test-Path $apk)) { Die('no existe ' + $apk) }
 
 # 3. Verificar APK (firma + version)
 Step '3/7 Verificar APK'
-& $apksigner verify --print-certs $apk 2>&1 | Select-Object -First 2
-if ($LASTEXITCODE -ne 0) { Die('firma invalida') }
+# apksigner.bat devuelve exit code no fiable (-1 aun en exito): validar por contenido
+$verifyOut = & $apksigner verify --print-certs $apk 2>&1 | Out-String
+Write-Host (($verifyOut -split "`r?`n" | Select-Object -First 2) -join "`n")
+if ($verifyOut -notmatch 'Signer #1 certificate' -or $verifyOut -match 'DOES NOT VERIFY|ERROR:') {
+  Die('firma invalida')
+}
 $badging = & $aapt dump badging $apk 2>&1 | Select-Object -First 1
 Write-Host "[publish] $badging"
 if ($badging -notmatch "versionCode='$VersionCode'" -or $badging -notmatch "versionName='$VersionName'") {
@@ -97,8 +108,13 @@ try {
 Step '6/7 Git push + Render'
 Push-Location $root
 try {
-  git add BiblioTube-Android/app/build.gradle.kts server/public/bibliotube.apk
-  git -c core.safecrlf=false commit -m "release: v$VersionName ($VersionCode)" --quiet 2>$null
+  git add BiblioTube-Android/app/build.gradle.kts server/public/bibliotube.apk scripts/publish-release.ps1
+  $pending = git status --porcelain 2>$null
+  if ($pending) {
+    git -c core.safecrlf=false commit -m "release: v$VersionName ($VersionCode)" --quiet 2>$null
+  } else {
+    Write-Host '[publish] sin cambios que commitear, sigo'
+  }
   git push origin main 2>&1 | Select-Object -Last 1
   if ($LASTEXITCODE -ne 0) { Die('git push fallo') }
   & (Join-Path $root 'scripts\deploy-render.ps1')

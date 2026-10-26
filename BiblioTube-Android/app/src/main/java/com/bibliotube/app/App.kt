@@ -182,14 +182,37 @@ fun VaultApp(
         }
     }
 
+    fun downloadedApkValid(file: File, expectedCode: Int): Boolean {
+        if (!file.exists()) return false
+        return try {
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageArchiveInfo(
+                    file.absolutePath, android.content.pm.PackageManager.PackageInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION") context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+            } ?: return false
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode.toInt()
+            else @Suppress("DEPRECATION") info.versionCode
+            info.packageName == context.packageName && code == expectedCode
+        } catch (e: Exception) {
+            log("APK invalido (${file.name}): ${e.message}")
+            false
+        }
+    }
+
     fun downloadAndInstall(info: com.bibliotube.app.data.AppVersionResponse) {
         val existing = pendingApk(info.versionCode)
         val recorded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt("pending_update_code", -1)
-        if (recorded == info.versionCode && existing.exists()) {
+        if (recorded == info.versionCode && downloadedApkValid(existing, info.versionCode)) {
             log("OTA: usa descarga existente v${info.versionName}")
             installApk(existing)
             return
+        }
+        if (existing.exists()) {
+            log("OTA: descarga previa invalida, se vuelve a descargar")
+            existing.delete()
         }
         val full = if (info.apkUrl.startsWith("/")) SERVER_URL.trimEnd('/') + info.apkUrl else info.apkUrl
         val url = "$full?t=${System.currentTimeMillis()}"
@@ -221,6 +244,14 @@ fun VaultApp(
                     }
                     val file = pendingApk(info.versionCode)
                     file.writeBytes(out.toByteArray())
+                    if (total > 0 && file.length() != total) {
+                        file.delete()
+                        throw RuntimeException("descarga incompleta (${file.length()}/$total bytes)")
+                    }
+                    if (!downloadedApkValid(file, info.versionCode)) {
+                        file.delete()
+                        throw RuntimeException("APK descargado corrupto, reintenta")
+                    }
                     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                         .edit().putInt("pending_update_code", info.versionCode).apply()
                     withContext(Dispatchers.Main) {
@@ -241,6 +272,18 @@ fun VaultApp(
 
     LaunchedEffect(session.accessToken) {
         ensureReminderChannel(context)
+        // Limpieza post-instalacion: si ya corre la version descargada, borrar APKs viejos
+        scope.launch(Dispatchers.IO) {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val pending = prefs.getInt("pending_update_code", -1)
+            if (pending > 0 && currentVersionCode() >= pending) {
+                updatesDir().listFiles()
+                    ?.filter { it.name.endsWith(".apk") }
+                    ?.forEach { it.delete() }
+                prefs.edit().putInt("pending_update_code", -1).apply()
+                withContext(Dispatchers.Main) { log("OTA: limpieza post-instalacion v$pending") }
+            }
+        }
         scope.launch(Dispatchers.IO) {
             val err = repo.sync()
             val pending = VaultDatabase.get(context).videos().pendingReminders(System.currentTimeMillis())

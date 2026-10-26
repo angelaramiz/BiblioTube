@@ -24,6 +24,6 @@ data class VaultVideo(
 data class VideoPreview(
     val titulo: String,
     val descripcion: String,
-    val thumbnailUrl: String,
+    @com.google.gson.annotations.SerializedName("thumbnail_url") val thumbnailUrl: String,
     val plataforma: String
 )

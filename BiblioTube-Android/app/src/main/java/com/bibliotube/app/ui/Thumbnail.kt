@@ -53,7 +53,7 @@ fun VideoThumbnail(url: String?, platform: String, modifier: Modifier = Modifier
                     val bmp = BitmapFactory.decodeStream(buffered) ?: return@use
                     bitmap = bmp.asImageBitmap()
                 }
-            }
+            }.onFailure { }
         }
     }
     val shape = RoundedCornerShape(16.dp)

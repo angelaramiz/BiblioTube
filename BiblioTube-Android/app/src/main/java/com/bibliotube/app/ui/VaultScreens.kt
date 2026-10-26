@@ -3,6 +3,8 @@ package com.bibliotube.app.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,6 +84,7 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Mi boveda", style = MaterialTheme.typography.headlineSmall)
             Row {
@@ -126,6 +129,7 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
         FloatingActionButton(onClick = { editing = null; showVideoForm = true }, modifier = Modifier.padding(bottom = 8.dp)) {
             Text("+")
         }
+        } // CompositionLocalProvider
     }
 
     if (showCatDialog) {

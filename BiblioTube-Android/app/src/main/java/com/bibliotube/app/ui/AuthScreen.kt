@@ -1,6 +1,7 @@
 package com.bibliotube.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,12 +14,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.bibliotube.app.data.SessionManager
@@ -54,6 +57,7 @@ fun AuthScreen(sessions: SessionManager) {
             .background(MaterialTheme.colorScheme.background)
             .padding(24.dp)
     ) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         Spacer(Modifier.height(48.dp))
         Text("BiblioTube", style = MaterialTheme.typography.headlineMedium)
         Text(if (modeLogin) "Inicia sesion para ver tu boveda" else "Crea tu cuenta", style = MaterialTheme.typography.bodyMedium)
@@ -73,5 +77,6 @@ fun AuthScreen(sessions: SessionManager) {
         OutlinedButton(onClick = { modeLogin = !modeLogin }, modifier = Modifier.fillMaxWidth()) {
             Text(if (modeLogin) "No tengo cuenta" else "Ya tengo cuenta")
         }
+        } // CompositionLocalProvider
     }
 }

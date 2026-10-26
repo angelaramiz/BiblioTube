@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.unit.dp
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.api.SERVER_URL
@@ -132,14 +134,14 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
             .background(MaterialTheme.colorScheme.background)
             .padding(20.dp)
     ) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         Text("Guardar en BiblioTube", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(12.dp))
         if (url == null) {
             Text("Sin enlace para guardar.", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(12.dp))
             Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Cerrar") }
-            return@Column
-        }
+        } else {
         if (loading) {
             CircularProgressIndicator()
             Spacer(Modifier.height(8.dp))
@@ -164,6 +166,8 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
         Button(onClick = { save() }, enabled = !saving && titulo.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
             Text(if (saving) "Guardando…" else "Guardar")
         }
+        } // else(url != null)
+        } // CompositionLocalProvider
     }
 }
 

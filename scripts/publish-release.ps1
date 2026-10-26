@@ -85,8 +85,9 @@ if (-not $ServiceKey) {
 $valor = @{ versionCode = $VersionCode; versionName = $VersionName; apkUrl = '/public/bibliotube.apk' } | ConvertTo-Json -Compress
 $body = @{ valor = ($valor | ConvertFrom-Json) } | ConvertTo-Json -Compress -Depth 5
 $H = @{ apikey = $ServiceKey; Authorization = "Bearer $ServiceKey"; 'Content-Type' = 'application/json'; Prefer = 'return=representation' }
+$UA = 'BiblioTube-publish/1.0'
 try {
-  $r = Invoke-RestMethod -Method Patch -Uri "$SupaUrl/rest/v1/app_versions?clave=eq.app_version_bibliotube" -Headers $H -Body $body
+  $r = Invoke-RestMethod -Method Patch -Uri "$SupaUrl/rest/v1/app_versions?clave=eq.app_version_bibliotube" -Headers $H -Body $body -UserAgent $UA
   Write-Host ("[publish] supabase OK: " + ($r.valor | ConvertTo-Json -Compress))
 } catch {
   Die('PATCH supabase: ' + $_.Exception.Message)

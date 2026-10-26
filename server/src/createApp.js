@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { sanitizeAppName, buildVersionKey, normalizeVersionInfo, ok, fail, DEFAULT_VERSION } from "./version.js";
 import { validateCategoryInput, validateVideoInput, sortVideos, fetchPreview } from "./vault.js";
+import { validateThumbUrl, THUMB_MAX_BYTES } from "./thumb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -231,6 +232,33 @@ export function createApp(supabaseOrFactory, options = {}) {
       return res.json(ok(preview));
     } catch (err) {
       return res.status(400).json(fail(err?.message ?? "invalid url"));
+    }
+  });
+
+  // Proxy de miniaturas (evita hotlink directo + redes que bloquean CDNs).
+  // Allowlist estricta: nunca open-proxy. Sin auth (las thumbs son publicas).
+  app.get("/api/thumb", async (req, res) => {
+    const url = typeof req.query.url === "string" ? req.query.url.trim() : "";
+    if (!url) return res.status(400).json(fail("invalid url: required"));
+    let target;
+    try {
+      target = validateThumbUrl(url);
+    } catch (err) {
+      return res.status(403).json(fail(err?.message ?? "invalid url"));
+    }
+    try {
+      const upstream = await fetchFn(target.toString());
+      if (!upstream.ok) return res.status(502).json(fail(`thumb upstream: HTTP ${upstream.status}`));
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      if (buf.length === 0 || buf.length > THUMB_MAX_BYTES) {
+        return res.status(502).json(fail("thumb upstream: empty or too large"));
+      }
+      const ct = upstream.headers?.get?.("content-type") || "image/jpeg";
+      res.set("Content-Type", ct);
+      res.set("Cache-Control", "public, max-age=86400");
+      return res.send(buf);
+    } catch (err) {
+      return res.status(502).json(fail("thumb upstream: unreachable"));
     }
   });
 

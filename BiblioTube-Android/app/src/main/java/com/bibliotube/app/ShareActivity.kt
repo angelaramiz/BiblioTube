@@ -27,7 +27,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import com.bibliotube.app.ui.VideoThumbnail
+import com.bibliotube.app.work.scheduleReminder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -99,10 +102,15 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
     var link by remember(url) { mutableStateOf(url ?: "") }
     var titulo by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
+    var plataforma by remember { mutableStateOf("otra") }
     var catId by remember { mutableStateOf<String?>(null) }
+    var prioridad by remember { mutableStateOf(0f) }
+    var reminderOpt by remember { mutableStateOf(0) }
+    var repeat by remember { mutableStateOf("none") }
     var loading by remember { mutableStateOf(url != null) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var thumbnail by remember { mutableStateOf("") }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -113,8 +121,10 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 loading = false
                 if (res.data != null) {
-                    if (titulo.isBlank()) titulo = res.data.titulo
-                    if (descripcion.isBlank()) descripcion = res.data.descripcion
+                    res.data.titulo?.let { if (titulo.isBlank()) titulo = it }
+                    res.data.descripcion?.let { if (descripcion.isBlank()) descripcion = it }
+                    res.data.plataforma?.let { plataforma = it }
+                    res.data.thumbnailUrl?.let { thumbnail = it }
                 } else error = res.error
             }
         }
@@ -124,20 +134,27 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
         if (link.isBlank() || titulo.isBlank() || saving) return
         saving = true
         scope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val at = when (reminderOpt) {
+                1 -> now + 24 * 60 * 60 * 1000L
+                2 -> now + 7 * 24 * 60 * 60 * 1000L
+                else -> null
+            }
             val v = VaultVideo(
                 id = UUID.randomUUID().toString(),
                 categoryId = catId,
                 titulo = titulo.trim(),
                 descripcion = descripcion.trim(),
-                plataforma = detectPlatform(link),
+                plataforma = plataforma,
                 url = link.trim(),
-                thumbnailUrl = "",
-                fechaGuardado = System.currentTimeMillis(),
-                prioridad = 0,
-                recordatorioAt = null,
-                recordatorioRepeat = "none"
+                thumbnailUrl = thumbnail,
+                fechaGuardado = now,
+                prioridad = prioridad.toInt(),
+                recordatorioAt = at,
+                recordatorioRepeat = repeat
             )
             repo.saveVideo(v, true)
+            if (at != null) scheduleReminder(context, v.id, v.titulo, at, repeat)
             SyncWorker.enqueue(context)
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 toast("Guardado en BiblioTube")
@@ -180,11 +197,21 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
         }
         Text(link, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
+        VideoThumbnail(url = thumbnail, platform = plataforma)
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = titulo, onValueChange = { titulo = it },
             label = { Text("Titulo") }, singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = descripcion, onValueChange = { descripcion = it },
+            label = { Text("Descripcion") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(4.dp))
+        Text("Plataforma: $plataforma", style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         Text("Carpeta", style = MaterialTheme.typography.bodyMedium)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -194,7 +221,27 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
             }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+        Text("Prioridad: ${prioridad.toInt()}", style = MaterialTheme.typography.bodyMedium)
+        Slider(
+            value = prioridad, onValueChange = { prioridad = it },
+            valueRange = 0f..5f, steps = 4, modifier = Modifier.fillMaxWidth()
+        )
+        Text("Recordatorio", style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = reminderOpt == 0, onClick = { reminderOpt = 0 }, label = { Text("No") })
+            FilterChip(selected = reminderOpt == 1, onClick = { reminderOpt = 1 }, label = { Text("Manana") })
+            FilterChip(selected = reminderOpt == 2, onClick = { reminderOpt = 2 }, label = { Text("Semana") })
+        }
+        if (reminderOpt > 0) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("none" to "Una vez", "daily" to "Diario", "weekly" to "Semanal").forEach { (r, l) ->
+                    FilterChip(selected = repeat == r, onClick = { repeat = r }, label = { Text(l) })
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+        Spacer(Modifier.height(4.dp))
         Button(onClick = { save() }, enabled = !saving && titulo.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
             Text(if (saving) "Guardando…" else "Guardar")
         }

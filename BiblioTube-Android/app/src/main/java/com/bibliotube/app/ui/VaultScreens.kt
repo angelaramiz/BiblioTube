@@ -179,6 +179,13 @@ fun VideoCard(v: VaultVideo, categories: List<Category>, onEdit: () -> Unit, onD
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
+            if (v.thumbnailUrl.isNotBlank()) {
+                com.bibliotube.app.ui.VideoThumbnail(
+                    url = v.thumbnailUrl,
+                    platform = v.plataforma
+                )
+                Spacer(Modifier.height(8.dp))
+            }
             Text(
                 v.titulo,
                 style = MaterialTheme.typography.titleMedium,

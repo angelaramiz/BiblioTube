@@ -31,6 +31,7 @@ biometric = { group = "androidx.biometric", name = "biometric", version.ref = "b
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 workmanager = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }

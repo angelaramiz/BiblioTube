@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,10 +36,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.bibliotube.app.api.ApiClient
+import com.bibliotube.app.data.SessionManager
 import com.bibliotube.app.data.VaultRepository
 import com.bibliotube.app.data.local.VaultDatabase
 import com.bibliotube.app.data.model.VaultVideo
-import com.bibliotube.app.data.remote.AuthClient
 import com.bibliotube.app.data.remote.AuthSession
 import com.bibliotube.app.ui.AuthScreen
 import com.bibliotube.app.ui.VaultHome
@@ -58,29 +59,17 @@ private const val SERVER_URL_DEFAULT = "http://10.0.2.2:3000"
 @Composable
 fun App() {
     val context = LocalContext.current
-    var session by remember { mutableStateOf<AuthSession?>(null) }
-    var sessionChecked by remember { mutableStateOf(false) }
+    val sessions = remember { SessionManager.get(context) }
+    val session by sessions.session.collectAsState()
 
-    LaunchedEffect(Unit) {
-        session = AuthClient(context).session()
-        session?.let { AuthClient(context).refresh() }
-        session = AuthClient(context).session()
-        sessionChecked = true
-    }
+    LaunchedEffect(Unit) { sessions.refreshIfNeeded() }
 
-    if (!sessionChecked) {
-        Box(Modifier.fillMaxSize()) { Text("Cargando…", Modifier.padding(24.dp)) }
-        return
-    }
     val s = session
     if (s == null) {
-        AuthScreen(onSession = { session = it })
+        AuthScreen(sessions = sessions)
         return
     }
-    VaultApp(session = s, onSignOut = {
-        AuthClient(context).signOut()
-        session = null
-    })
+    VaultApp(session = s, onSignOut = { sessions.signOut() })
 }
 
 @Composable

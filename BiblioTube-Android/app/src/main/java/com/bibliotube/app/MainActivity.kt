@@ -7,15 +7,10 @@ import androidx.fragment.app.FragmentActivity
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Canal notif + init pesado yt-dlp/ffmpeg/aria2c en IO (espejo Seal App.onCreate)
+        // Canal notif + init pesado yt-dlp/ffmpeg/aria2c en IO (singleton del provider).
         com.bibliotube.downloader.BtNotifications.ensureChannel(this)
         Thread {
-            runCatching {
-                com.bibliotube.downloader.BtDownloader(
-                    this, com.bibliotube.downloader.BtStorage.publicDir(),
-                    com.bibliotube.downloader.BtStorage.tmpDir(this),
-                ).init()
-            }
+            runCatching { com.bibliotube.app.downloader.DownloaderProvider.ensureInit(this) }
         }.start()
         // POST_NOTIFICATIONS Android 13+
         if (android.os.Build.VERSION.SDK_INT >= 33) {

@@ -67,4 +67,9 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.workmanager)
     ksp(libs.room.compiler)
+    testImplementation(libs.room.testing)
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }

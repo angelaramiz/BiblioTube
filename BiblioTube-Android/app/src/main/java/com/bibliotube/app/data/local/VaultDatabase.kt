@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [CategoryEntity::class, VideoEntity::class], version = 1, exportSchema = false)
+@Database(entities = [CategoryEntity::class, VideoEntity::class], version = 1, exportSchema = true)
 abstract class VaultDatabase : RoomDatabase() {
     abstract fun categories(): CategoryDao
     abstract fun videos(): VideoDao

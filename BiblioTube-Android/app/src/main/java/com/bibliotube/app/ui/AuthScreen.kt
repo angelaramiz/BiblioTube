@@ -18,18 +18,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.bibliotube.app.data.remote.AuthClient
-import com.bibliotube.app.data.remote.AuthSession
-import kotlinx.coroutines.Dispatchers
+import com.bibliotube.app.data.SessionManager
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
-fun AuthScreen(onSession: (AuthSession) -> Unit) {
-    val context = LocalContext.current
+fun AuthScreen(sessions: SessionManager) {
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -44,13 +39,11 @@ fun AuthScreen(onSession: (AuthSession) -> Unit) {
         }
         busy = true
         error = null
-        scope.launch(Dispatchers.IO) {
-            val auth = AuthClient(context)
-            val res = if (modeLogin) auth.signIn(email.trim(), password) else auth.signUp(email.trim(), password)
-            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                busy = false
-                res.onSuccess { onSession(it) }.onFailure { error = it.message }
-            }
+        scope.launch {
+            val res = if (modeLogin) sessions.signIn(email.trim(), password)
+            else sessions.signUp(email.trim(), password)
+            busy = false
+            res.onFailure { error = it.message }
         }
     }
 

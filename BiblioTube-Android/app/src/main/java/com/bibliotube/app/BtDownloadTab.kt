@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.bibliotube.app.downloader.DownloaderProvider
 import com.bibliotube.downloader.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,10 +23,7 @@ fun BtDownloadTab() {
     var useAria2c by remember { mutableStateOf(false) }
     var withSubs by remember { mutableStateOf(false) }
 
-    fun downloader(): BtDownloader = BtDownloader(
-        ctx, BtStorage.publicDir(), BtStorage.tmpDir(ctx),
-        BtFiles.cookiesFile(ctx), BtFiles.archiveFile(ctx),
-    ).also { runCatching { it.init() } }
+    fun downloader(): BtDownloader = DownloaderProvider.get(ctx)
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Descargas (base Seal)", style = MaterialTheme.typography.titleMedium)

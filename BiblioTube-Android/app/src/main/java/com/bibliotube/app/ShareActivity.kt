@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -125,7 +126,12 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxWidth().padding(20.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(20.dp)
+    ) {
         Text("Guardar en BiblioTube", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(12.dp))
         if (url == null) {

@@ -1,5 +1,6 @@
 package com.bibliotube.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +48,12 @@ fun AuthScreen(sessions: SessionManager) {
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(24.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp)
+    ) {
         Spacer(Modifier.height(48.dp))
         Text("BiblioTube", style = MaterialTheme.typography.headlineMedium)
         Text(if (modeLogin) "Inicia sesion para ver tu boveda" else "Crea tu cuenta", style = MaterialTheme.typography.bodyMedium)

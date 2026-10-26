@@ -16,4 +16,4 @@
 - [x] (2026-10-25) Supabase: URL + publishable key en server/.env, npm install OK (80 pkgs). Tabla pendiente de crear.
 - [x] (2026-10-25) Probar en emulador: install + launch OK, captura verifica UI (header, placeholder, BottomBar visible)
 - [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
-- [x] (2026-10-26) Diseno: DESIGN.md + theme M3 light/dark (dynamic off) + checklist + 3 skills diseno instaladas con ADAPTER. Verificado en emulador.
+- [x] (2026-10-26) v1.0.5 publicada: identidad visible + copiar logs. Pendiente: logs del telefono + foto capa oscura.

@@ -3,7 +3,6 @@ package com.bibliotube.app
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,7 +127,48 @@ fun VaultApp(session: AuthSession, onSignOut: () -> Unit) {
         }
     }
 
+    fun updatesDir(): File {
+        val dir = File(context.getExternalFilesDir(null), "updates")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    fun pendingApk(versionCode: Int): File =
+        File(updatesDir(), "bibliotube_update_$versionCode.apk")
+
+    fun cleanOldApks(keepCode: Int) {
+        updatesDir().listFiles()
+            ?.filter { it.name.endsWith(".apk") && it.name != "bibliotube_update_$keepCode.apk" }
+            ?.forEach { it.delete() }
+    }
+
+    fun installApk(file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                context, "com.bibliotube.app.fileprovider", file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            toast("No se pudo iniciar la instalacion: ${e.message}")
+            log("Install: ${e.message}")
+        }
+    }
+
     fun downloadAndInstall(info: com.bibliotube.app.data.AppVersionResponse) {
+        // Si ya se descargo esta version, instalar directo sin re-descargar
+        val existing = pendingApk(info.versionCode)
+        val recorded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt("pending_update_code", -1)
+        if (recorded == info.versionCode && existing.exists()) {
+            log("OTA: usa descarga existente v${info.versionName}")
+            installApk(existing)
+            return
+        }
         val base = serverUrl.trimEnd('/')
         val full = if (info.apkUrl.startsWith("/")) base + info.apkUrl else info.apkUrl
         val url = "$full?t=${System.currentTimeMillis()}"
@@ -142,9 +182,8 @@ fun VaultApp(session: AuthSession, onSignOut: () -> Unit) {
                     if (!res.isSuccessful) throw RuntimeException("HTTP ${res.code}")
                     val body = res.body ?: throw RuntimeException("respuesta vacia")
                     val total = body.contentLength()
-                    val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                        ?: throw RuntimeException("sin carpeta de descarga")
-                    dir.listFiles()?.forEach { if (it.name.endsWith(".apk")) it.delete() }
+                    val dir = updatesDir()
+                    cleanOldApks(info.versionCode)
                     val out = ByteArrayOutputStream()
                     val buf = ByteArray(8192)
                     var read: Int
@@ -159,25 +198,14 @@ fun VaultApp(session: AuthSession, onSignOut: () -> Unit) {
                             }
                         }
                     }
-                    val file = File(dir, "bibliotube_update_${System.currentTimeMillis()}.apk")
+                    val file = pendingApk(info.versionCode)
                     file.writeBytes(out.toByteArray())
+                    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                        .edit().putInt("pending_update_code", info.versionCode).apply()
                     withContext(Dispatchers.Main) {
                         isDownloading = false
                         updateAvailable = null
-                        try {
-                            val uri = FileProvider.getUriForFile(
-                                context, "com.bibliotube.app.fileprovider", file
-                            )
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/vnd.android.package-archive")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            toast("No se pudo iniciar la instalacion: ${e.message}")
-                            log("Install: ${e.message}")
-                        }
+                        installApk(file)
                     }
                 }
             } catch (e: Exception) {

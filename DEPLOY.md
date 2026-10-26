@@ -36,8 +36,11 @@ dominio de Render como `server_url`.
 3. Copiar APK → `server/public/bibliotube.apk` (o `release.ps1 -AppsJson ./apps.json ...`).
 4. UPDATE fila `app_version_bibliotube` en tabla `app_versions`
    (`versionCode`, `versionName`, `apkUrl: "/public/bibliotube.apk"`).
-5. `git add server/public/bibliotube.apk` + commit + push → Render redespliega solo.
-6. Verificar: `/api/app-version?app=bibliotube` responde lo nuevo y el APK
+5. `git add server/public/bibliotube.apk` + commit + push.
+6. Dispara el redeploy inmediato: `.\scripts\deploy-render.ps1`
+   (usa el deploy hook de `.agents/render-deploy-hook.local`, gitignored —
+   no esperar al auto-deploy). Verifica el estado en el dashboard de Render.
+7. Verificar: `/api/app-version?app=bibliotube` responde lo nuevo y el APK
    descarga (HTTP 200).
 7. La app instalada lo detecta al abrir (o Ajustes → Buscar actualizaciones).
    Para probar: instala un APK viejo encima del flujo una vez.

@@ -1,6 +1,7 @@
 node_modules/
 server/.env
 .opencode/
+*.local
 *.log
 # Android local
 BiblioTube-Android/local.properties

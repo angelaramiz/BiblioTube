@@ -6,7 +6,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -32,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.api.SERVER_URL
@@ -57,6 +65,16 @@ fun extractSharedUrl(text: String?): String? {
 class ShareActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        render(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        render(intent)
+    }
+
+    private fun render(intent: Intent?) {
         val shared = if (intent?.action == Intent.ACTION_SEND) {
             extractSharedUrl(intent.getStringExtra(Intent.EXTRA_TEXT))
         } else null
@@ -130,11 +148,25 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
 
     Column(
         Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp)
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onDone() }
+            .padding(20.dp),
+        verticalArrangement = Arrangement.Center
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
         Text("Guardar en BiblioTube", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(12.dp))
         if (url == null) {
@@ -166,6 +198,8 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
         Button(onClick = { save() }, enabled = !saving && titulo.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
             Text(if (saving) "Guardando…" else "Guardar")
         }
+        } // Column form
+        } // Card
         } // else(url != null)
         } // CompositionLocalProvider
     }

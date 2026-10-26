@@ -4,4 +4,9 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/bt_window_bg</item>
     </style>
+    <style name="Theme.BiblioTube.Share" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

@@ -16,4 +16,4 @@
 - [x] (2026-10-25) Supabase: URL + publishable key en server/.env, npm install OK (80 pkgs). Tabla pendiente de crear.
 - [x] (2026-10-25) Probar en emulador: install + launch OK, captura verifica UI (header, placeholder, BottomBar visible)
 - [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
-- [x] (2026-10-26) v1.0.7 publicada: instalador con verificacion + limpieza. E2E v6->v7 OK en emulador.
+- [x] (2026-10-26) v1.0.8 publicada: fix textos negros en dark (LocalContentColor) + instalador verificado.

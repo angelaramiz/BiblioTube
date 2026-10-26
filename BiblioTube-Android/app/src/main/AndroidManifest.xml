@@ -34,7 +34,7 @@
             android:name=".ShareActivity"
             android:exported="true"
             android:label="Guardar en BiblioTube"
-            android:theme="@style/Theme.BiblioTube"
+            android:theme="@style/Theme.BiblioTube.Share"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:excludeFromRecents="true">

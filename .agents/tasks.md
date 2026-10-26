@@ -9,6 +9,11 @@
 - [ ] Usuario: ejecutar server/supabase.sql en dashboard (tablas profiles/categories/videos + RLS)
 - [ ] E2E: backend local + registro + crear carpeta/video + sync + recordatorio
 - [x] (2026-10-26) Render-ready: landing en / + /api/health + render.yaml + .gitignore + DEPLOY.md. 79/79 tests, health y landing verificados local.
-- [ ] OTA real: versionCode 2 → detectar/descargar/instalar encima
+- [x] (2026-10-26) Evaluar arquitectura-android v0.2.1: decisión NO modularizar/DI por ahora (criterio dimensionar) + ADAPTER.md. Primera instalación real de la skill.
+- [x] (2026-10-26) Repo git conectado a github.com/angelaramiz/BiblioTube (main, commit a6daa54). Secretos excluidos.
+- [x] (2026-10-26) APK v1.0.0 publicado: server/public/bibliotube.apk (46MB) + push d96107f. Render redespliega solo.
+- [x] (2026-10-26) OTA real E2E: v3 detecto 1.0.3 en Render → descargo a updates/ → instalador (origenes + Play Protect) → v4 corriendo, sesion intacta.
 - [x] (2026-10-25) Supabase: URL + publishable key en server/.env, npm install OK (80 pkgs). Tabla pendiente de crear.
 - [x] (2026-10-25) Probar en emulador: install + launch OK, captura verifica UI (header, placeholder, BottomBar visible)
+- [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
+- [x] (2026-10-26) Diseno: DESIGN.md + theme M3 light/dark (dynamic off) + checklist + 3 skills diseno instaladas con ADAPTER. Verificado en emulador.

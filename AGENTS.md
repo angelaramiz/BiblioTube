@@ -10,6 +10,7 @@ App Android Kotlin (Compose) `com.bibliotube.app` + backend Express + Supabase. 
 - `apps.json` — config release OTA (raiz, la lee `release.ps1`). `.agents/skill/<nombre>/` — skills + `ADAPTER.md` local. `SKILL.md` no se edita.
 - `scripts/setup-env.ps1` — entorno Android. `.agents/tasks.md` — estado.
 - Deploy: `render.yaml` (Blueprint) + `DEPLOY.md` (release flow). APK se commitea en `server/public/bibliotube.apk`.
+- Diseño: `DESIGN.md` (contrato de marca) + `ui/theme/` (Material3, `dynamicColor=false`).
 
 ## Setup (Windows + PowerShell 5.1, sesion nueva = repetir)
 
@@ -36,7 +37,7 @@ cd server; npm install; node server.js                                     # bac
 - Capturas SOLO `screencap` + `pull` (el script ya lo hace). `exec-out` redirigido en PowerShell corrompe el PNG.
 - Release flow: bump `versionCode`/`versionName` → `assembleRelease` → copiar APK a `server/public/bibliotube.apk` → UPDATE fila `app_version_bibliotube` en tabla `app_versions` → verificar endpoint. Firma debug=release (mismo `debug.keystore`): obligatoria para que el OTA instale encima.
 - Supabase: `https://buccrasmylvkzymbhfwx.supabase.co`, tabla `app_versions(clave, valor JSONB)`, schema en `server/supabase.sql` (incluye RLS solo-lectura). La publishable key solo lee; escrituras via dashboard o `service_role`.
-- Emulador llega al backend con `http://10.0.2.2:3000` (default ya cableado en `App.kt`).
+- Emulador llega al backend con `http://10.0.2.2:3000` (default ya cableado en `App.kt`). Ojo: targetSdk 35 bloquea HTTP en claro; dev usa `res/xml/network_security_config.xml` (solo 10.0.2.2/localhost). Produccion = HTTPS Render.
 
 ## Convenciones
 

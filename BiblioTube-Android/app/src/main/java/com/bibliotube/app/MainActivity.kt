@@ -18,6 +18,6 @@ class MainActivity : FragmentActivity() {
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
             }
         }
-        setContent { com.bibliotube.app.ui.theme.BiblioTubeTheme { App() } }
+        setContent { App() }
     }
 }

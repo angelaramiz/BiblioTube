@@ -61,7 +61,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
-import java.io.ByteArrayOutputStream
 import java.io.File
 
 private const val PREFS = "bibliotube_prefs"
@@ -203,6 +202,39 @@ fun VaultApp(
         }
     }
 
+    suspend fun downloadToFile(url: String, file: File, onFrac: (Float) -> Unit) {
+        val client = ApiClient(SERVER_URL).http
+        val resumed = if (file.exists()) file.length() else 0L
+        val builder = Request.Builder().url(url)
+        if (resumed > 0) builder.header("Range", "bytes=$resumed-")
+        client.newCall(builder.build()).execute().use { res ->
+            val append = res.code == 206
+            if (!res.isSuccessful) throw RuntimeException("HTTP ${res.code}")
+            val body = res.body ?: throw RuntimeException("respuesta vacia")
+            if (!append && resumed > 0) file.delete()
+            val startAt = if (append) resumed else 0L
+            val total = body.contentLength().let { if (it > 0) it + startAt else -1L }
+            var done = startAt
+            java.io.FileOutputStream(file, append).use { out ->
+                val buf = ByteArray(32 * 1024)
+                var read: Int
+                body.byteStream().use { input ->
+                    while (input.read(buf).also { read = it } != -1) {
+                        out.write(buf, 0, read)
+                        done += read
+                        if (total > 0) {
+                            val p = done.toFloat() / total.toFloat()
+                            withContext(Dispatchers.Main) { onFrac(p) }
+                        }
+                    }
+                }
+            }
+            if (total > 0 && file.length() != total) {
+                throw RuntimeException("descarga incompleta (${file.length()}/$total bytes)")
+            }
+        }
+    }
+
     fun downloadAndInstall(info: com.bibliotube.app.data.AppVersionResponse) {
         val existing = pendingApk(info.versionCode)
         val recorded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -222,45 +254,39 @@ fun VaultApp(
         downloadProgress = 0f
         scope.launch(Dispatchers.IO) {
             try {
-                val client = ApiClient(SERVER_URL).http
-                val req = Request.Builder().url(url).build()
-                client.newCall(req).execute().use { res ->
-                    if (!res.isSuccessful) throw RuntimeException("HTTP ${res.code}")
-                    val body = res.body ?: throw RuntimeException("respuesta vacia")
-                    val total = body.contentLength()
-                    val dir = updatesDir()
-                    cleanOldApks(info.versionCode)
-                    val out = ByteArrayOutputStream()
-                    val buf = ByteArray(8192)
-                    var read: Int
-                    var done = 0L
-                    body.byteStream().use { input ->
-                        while (input.read(buf).also { read = it } != -1) {
-                            out.write(buf, 0, read)
-                            done += read
-                            if (total > 0) {
-                                val p = done.toFloat() / total.toFloat()
-                                withContext(Dispatchers.Main) { downloadProgress = p }
-                            }
+                val file = pendingApk(info.versionCode)
+                cleanOldApks(info.versionCode)
+                var lastErr: Exception? = null
+                var ok = false
+                for (attempt in 1..3) {
+                    if (attempt > 1) {
+                        withContext(Dispatchers.Main) {
+                            downloadProgress = 0f
+                            log("OTA: reintento $attempt/3")
                         }
                     }
-                    val file = pendingApk(info.versionCode)
-                    file.writeBytes(out.toByteArray())
-                    if (total > 0 && file.length() != total) {
-                        file.delete()
-                        throw RuntimeException("descarga incompleta (${file.length()}/$total bytes)")
+                    try {
+                        downloadToFile(url, file) { frac ->
+                            downloadProgress = frac
+                        }
+                        if (!downloadedApkValid(file, info.versionCode)) {
+                            file.delete()
+                            throw RuntimeException("APK descargado corrupto (intento $attempt/3)")
+                        }
+                        ok = true
+                        break
+                    } catch (e: Exception) {
+                        lastErr = e
+                        withContext(Dispatchers.Main) { log("Descarga intento $attempt: ${e.message}") }
                     }
-                    if (!downloadedApkValid(file, info.versionCode)) {
-                        file.delete()
-                        throw RuntimeException("APK descargado corrupto, reintenta")
-                    }
-                    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                        .edit().putInt("pending_update_code", info.versionCode).apply()
-                    withContext(Dispatchers.Main) {
-                        isDownloading = false
-                        updateAvailable = null
-                        installApk(file)
-                    }
+                }
+                if (!ok) throw lastErr ?: RuntimeException("descarga fallida")
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putInt("pending_update_code", info.versionCode).apply()
+                withContext(Dispatchers.Main) {
+                    isDownloading = false
+                    updateAvailable = null
+                    installApk(file)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

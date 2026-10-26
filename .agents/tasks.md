@@ -17,3 +17,4 @@
 - [x] (2026-10-25) Probar en emulador: install + launch OK, captura verifica UI (header, placeholder, BottomBar visible)
 - [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
 - [x] (2026-10-26) v1.0.8 publicada: fix textos negros en dark (LocalContentColor) + instalador verificado.
+- [x] (2026-10-26) DOC: AGENTS.md (arquitectura real + gotchas PS/Supabase/OTA/emulador), DESIGN.md (header tonal, fondos explicitos).

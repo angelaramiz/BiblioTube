@@ -1,16 +1,16 @@
 # bibliotube — AGENTS.md
 
-App Android Kotlin (Compose) `com.bibliotube.app` + backend Express + Supabase. Dominio aun vacio (v1 = shell + OTA).
+Boveda de videos (`com.bibliotube.app`, Compose + Material3) + backend Express + Supabase. Auth con login, carpetas, videos (preview oEmbed, prioridad, recordatorios), descargas yt-dlp (`bt-downloader`), share target con guardado rapido, OTA con auto-update.
 
 ## Estructura
 
-- `BiblioTube-Android/` — app (`MainActivity: FragmentActivity` → `App()`). Entrypoints: `App.kt`, `api/ApiClient.kt` (OTA + boveda con JWT), `data/remote/AuthClient.kt` (GoTrue REST, sin SDK), `data/VaultRepository.kt` (Room verdad + sync), `data/local/` (Room), `ui/` (Auth + boveda), `work/` (Sync + recordatorios).
+- `BiblioTube-Android/` — app (`MainActivity: FragmentActivity` → `App()`). Entrypoints: `App.kt` (OTA + navegacion), `ShareActivity.kt` (share target, tarea propia translucida), `api/ApiClient.kt` + `api/ServerConfig.kt` (Render interno, sin UI de servidor), `data/SessionManager.kt` (sesion StateFlow unica), `data/VaultRepository.kt`, `data/local/` (Room, `exportSchema=true` + `schemas/`), `ui/` (Auth + boveda + `theme/`), `work/` (Sync + recordatorios), `downloader/DownloaderProvider.kt` (singleton yt-dlp).
 - `BiblioTube-Android/bt-downloader/` — acople yt-dlp (`com.bibliotube.downloader`). Ojo: youtubedl-android 0.17.3 solo expone `addOption` de 2 args; `BtUpdate` devuelve String (no exponer tipos de la lib a la app).
-- `server/` — Express ESM (`server.js`): `GET /api/app-version?app=bibliotube`, `GET /api/app-catalog`, `GET /api/events/stream` (SSE). APKs en `server/public/`.
-- `apps.json` — config release OTA (raiz, la lee `release.ps1`). `.agents/skill/<nombre>/` — skills + `ADAPTER.md` local. `SKILL.md` no se edita.
-- `scripts/setup-env.ps1` — entorno Android. `.agents/tasks.md` — estado.
-- Deploy: `render.yaml` (Blueprint) + `DEPLOY.md` (release flow). APK se commitea en `server/public/bibliotube.apk`.
-- Diseño: `DESIGN.md` (contrato de marca) + `ui/theme/` (Material3, `dynamicColor=false`).
+- `server/` — Express ESM (`server.js` thin; logica en `src/`): version, catalog, SSE, boveda (JWT→RLS), preview oEmbed. Tests `npm test` (node:test). APKs en `server/public/`.
+- `.agents/skill/<nombre>/` — skills + `ADAPTER.md` local. `SKILL.md` no se edita.
+- `scripts/`: `setup-env.ps1`, `deploy-render.ps1` (hook gitignored), `publish-release.ps1` (pipeline 7 pasos).
+- Deploy: `render.yaml` (Blueprint, Node 22) + `DEPLOY.md`. APK se commitea en `server/public/bibliotube.apk`.
+- Diseño: `DESIGN.md` (contrato) + `ui/theme/` (`dynamicColor=false`).
 
 ## Setup (Windows + PowerShell 5.1, sesion nueva = repetir)
 
@@ -34,14 +34,18 @@ cd server; npm install; node server.js                                     # bac
 .\.agents\skill\emulador-android\scripts\emu.ps1 status|boot|install|launch|shot|dump|tap|type
 ```
 
-- Capturas SOLO `screencap` + `pull` (el script ya lo hace). `exec-out` redirigido en PowerShell corrompe el PNG.
-- Release flow: bump `versionCode`/`versionName` → `assembleRelease` → copiar APK a `server/public/bibliotube.apk` → UPDATE fila `app_version_bibliotube` en tabla `app_versions` → verificar endpoint. Firma debug=release (mismo `debug.keystore`): obligatoria para que el OTA instale encima.
-- Supabase: `https://buccrasmylvkzymbhfwx.supabase.co`, tabla `app_versions(clave, valor JSONB)`, schema en `server/supabase.sql` (incluye RLS solo-lectura). La publishable key solo lee; escrituras via dashboard o `service_role`.
-- Emulador llega al backend con `http://10.0.2.2:3000` (default ya cableado en `App.kt`). Ojo: targetSdk 35 bloquea HTTP en claro; dev usa `res/xml/network_security_config.xml` (solo 10.0.2.2/localhost). Produccion = HTTPS Render.
+- Capturas SOLO `screencap` + `pull` (el script ya lo hace). `exec-out` redirigido en PowerShell corrompe el PNG. `>` de PowerShell corrompe binarios (UTF-16): para `git show` a archivo usar `cmd /c` con redireccion.
+- Release SOLO via `.\scripts\publish-release.ps1 -VersionCode N -VersionName "x.y.z"` (versiona, build, verifica firma por contenido —`apksigner.bat` devuelve -1 aun en exito—, copia APK, PATCH Supabase con service key, push, hook, verifica hasta confirmar). Requiere `.agents/publish.local` con `SUPABASE_SERVICE_KEY`. Feature code se commitea ANTES (el pipeline solo agrega version + APK).
+- Firma unica debug+release (mismo `debug.keystore`): obligatoria para OTA e `install -r` entre build types.
+- Supabase: tabla `app_versions(clave, valor JSONB)` + `profiles/categories/videos` con RLS (`server/supabase.sql`). Publishable solo lee; escrituras con `service_role` + `-UserAgent 'BiblioTube-publish/1.0'` (PS 5.1 envia UA de navegador y Supabase rechaza secret keys).
+- `$ErrorActionPreference='Continue'` en scripts con nativos: con `Stop`, el stderr redirigido (`2>&1`) se vuelve error terminal (muerde a `git push` "Everything up-to-date").
+- OTA end-to-end: version vieja → detectar → descargar (streaming a disco + resume `Range` + 3 reintentos + gate `getPackageArchiveInfo`) → instalador (origenes + Play Protect) → abre nueva con sesion intacta. Limpieza de `updates/` al abrir ya actualizado.
+- Emulador: `force-stop` antes de verificar cambios de tema/modo (proceso obsoleto miente); tras `tap` en dialogos del sistema usar `dump` (no estimar); Gboard puede secuestrar `input text` (panel stylus → Back/Cancel y reintentar); `monkey launch` falla recien arrancado (reintentar).
 
 ## Convenciones
 
 - Responder siempre en espanol.
 - Apps nunca escriben directo a Supabase: todo via backend. Errores de API: mostrar el `error` real del servidor.
 - `scripts/*.ps1` en ASCII puro (PS 5.1 rompe con emojis/acentos en strings).
+- Compose: `Text` sin color hereda negro siempre → `LocalContentColor provides onBackground` en cada raiz + fondo explicito `colorScheme.background` (sistema dark + tema claro = capa negra si no). `DESIGN.md` manda; sin `dynamicColor`.
 - Prueba OTA real = instalar APK viejo → detectar → descargar → instalar encima.

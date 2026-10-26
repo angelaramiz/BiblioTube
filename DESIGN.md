@@ -22,7 +22,8 @@ Sin emojis como iconos. Contraste texto ≥ 4.5:1 (pares M3 verificados).
 
 ## Reglas de pantalla
 
-- Header: título + versión/sesión (`bodySmall`, `onBackground` 70%).
+- Header: bloque tonal `primaryContainer` con esquinas inferiores redondeadas + texto `onPrimaryContainer` (no texto suelto: hereda negro).
+- Toda raiz de pantalla fija `background(colorScheme.background)` y provee `LocalContentColor → onBackground` (sistema dark + tema claro transparenta el window oscuro si no).
 - BottomBar siempre visible (patrón `Box(weight(1f))`, skill `android-kotlin-app`).
 - Estados vacíos con acción (`Sin videos… + botón +`).
 - Errores: mensaje real del servidor, nunca genérico.

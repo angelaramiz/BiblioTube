@@ -37,6 +37,10 @@ fun parseInstant(s: String?): Long = try {
 
 class VaultRepository(private val db: VaultDatabase, private val api: ApiClient) {
 
+    companion object {
+        const val AUTH_EXPIRED = "AUTH_EXPIRED"
+    }
+
     fun observeCategories(): Flow<List<Category>> =
         db.categories().observeAll().map { rows ->
             rows.map { Category(it.id, it.nombre, it.color, it.orden) }
@@ -82,7 +86,9 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
     suspend fun sync(): String? = withContext(Dispatchers.IO) {
         try {
             val cats = api.vaultList<RemoteCategory>("/api/categories")
-            if (cats.error != null) return@withContext cats.error
+            if (cats.error != null) {
+                return@withContext if (api.lastHttpCode == 401) AUTH_EXPIRED else cats.error
+            }
             val dirtyCatIds = db.categories().dirty().map { it.id }.toSet()
             val remoteCats = cats.data ?: emptyList()
             val remoteCatIds = remoteCats.map { it.id }.toSet()
@@ -101,7 +107,9 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
             }
 
             val vids = api.vaultList<RemoteVideo>("/api/videos")
-            if (vids.error != null) return@withContext vids.error
+            if (vids.error != null) {
+                return@withContext if (api.lastHttpCode == 401) AUTH_EXPIRED else vids.error
+            }
             val dirtyVidIds = db.videos().dirty().map { it.id }.toSet()
             val remoteVids = vids.data ?: emptyList()
             val remoteIds = remoteVids.map { it.id }.toSet()

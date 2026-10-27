@@ -7,6 +7,18 @@ export const PLATFORMS = Object.freeze(["youtube", "instagram", "tiktok", "otra"
 
 export const REPEAT_VALUES = Object.freeze(["none", "daily", "weekly"]);
 
+/**
+ * Detecta errores de autenticacion de Supabase/PostgREST (JWT invalido o
+ * caducado) para devolver 401 en vez de 500. Nunca incluye detalle interno.
+ */
+export function isAuthError(error) {
+  if (!error || typeof error !== "object") return false;
+  const code = String(error.code ?? "");
+  if (/^PGRST30\d$/.test(code)) return true;
+  const msg = String(error.message ?? "");
+  return /jwt|token|expired|unauthorized|not authenticated/i.test(msg);
+}
+
 const YOUTUBE_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"]);
 const INSTAGRAM_HOSTS = new Set(["instagram.com", "www.instagram.com"]);
 const TIKTOK_HOSTS = new Set(["tiktok.com", "www.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"]);

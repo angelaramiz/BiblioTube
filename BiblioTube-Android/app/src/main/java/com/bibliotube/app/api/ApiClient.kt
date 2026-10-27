@@ -54,6 +54,9 @@ class ApiClient(val serverUrl: String) {
     // ---------- Boveda (requiere JWT de Supabase Auth) ----------
     data class ApiResult<T>(val data: T?, val error: String?)
 
+    var lastHttpCode: Int = 0
+        private set
+
     @PublishedApi internal fun vaultGet(path: String): String? {
         val token = authToken ?: return null
         val req = Request.Builder()
@@ -61,6 +64,7 @@ class ApiClient(val serverUrl: String) {
             .header("Authorization", "Bearer $token")
             .build()
         http.newCall(req).execute().use { res ->
+            lastHttpCode = res.code
             val body = res.body?.string().orEmpty()
             if (!res.isSuccessful) throw RuntimeException(extractError(body, res.code))
             return extractData(body)
@@ -80,6 +84,7 @@ class ApiClient(val serverUrl: String) {
             "DELETE" -> builder.delete()
         }
         http.newCall(builder.build()).execute().use { res ->
+            lastHttpCode = res.code
             val txt = res.body?.string().orEmpty()
             if (!res.isSuccessful) throw RuntimeException(extractError(txt, res.code))
             return extractData(txt)

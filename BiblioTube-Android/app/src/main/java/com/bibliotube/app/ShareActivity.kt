@@ -15,11 +15,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -176,7 +179,14 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         Card(
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
         Column(
@@ -184,66 +194,123 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-        Text("Guardar en BiblioTube", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(12.dp))
+        com.bibliotube.app.ui.components.BiblioTubeLogoHeader(
+            subtitle = "Guardado rápido en la bóveda"
+        )
+        Spacer(Modifier.height(14.dp))
         if (url == null) {
-            Text("Sin enlace para guardar.", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Cerrar") }
+            Text(
+                "No se detectó ningún enlace en el texto compartido.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onDone,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Cerrar") }
         } else {
         if (loading) {
-            CircularProgressIndicator()
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    "Analizando metadatos del video…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Spacer(Modifier.height(8.dp))
         }
-        Text(link, style = MaterialTheme.typography.bodySmall)
+        Text(
+            link,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
         Spacer(Modifier.height(8.dp))
-        VideoThumbnail(url = thumbnail, platform = plataforma)
-        Spacer(Modifier.height(8.dp))
+        if (thumbnail.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+            ) {
+                VideoThumbnail(url = thumbnail, platform = plataforma)
+            }
+            Spacer(Modifier.height(10.dp))
+        }
         OutlinedTextField(
             value = titulo, onValueChange = { titulo = it },
-            label = { Text("Titulo") }, singleLine = true,
+            label = { Text("Título") }, singleLine = true,
+            shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = descripcion, onValueChange = { descripcion = it },
-            label = { Text("Descripcion") },
+            label = { Text("Notas / Descripción") },
+            maxLines = 3,
+            shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(4.dp))
-        Text("Plataforma: $plataforma", style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        Text("Carpeta", style = MaterialTheme.typography.bodyMedium)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Carpeta",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+        )
+        Spacer(Modifier.height(4.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             item { FilterChip(selected = catId == null, onClick = { catId = null }, label = { Text("Ninguna") }) }
             items(categories, key = { it.id }) { c: Category ->
                 FilterChip(selected = catId == c.id, onClick = { catId = c.id }, label = { Text(c.nombre) })
             }
         }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        error?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(8.dp))
-        Text("Prioridad: ${prioridad.toInt()}", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Prioridad: ${prioridad.toInt()}",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+        )
         Slider(
             value = prioridad, onValueChange = { prioridad = it },
             valueRange = 0f..5f, steps = 4, modifier = Modifier.fillMaxWidth()
         )
-        Text("Recordatorio", style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Recordatorio",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FilterChip(selected = reminderOpt == 0, onClick = { reminderOpt = 0 }, label = { Text("No") })
-            FilterChip(selected = reminderOpt == 1, onClick = { reminderOpt = 1 }, label = { Text("Manana") })
-            FilterChip(selected = reminderOpt == 2, onClick = { reminderOpt = 2 }, label = { Text("Semana") })
+            FilterChip(selected = reminderOpt == 1, onClick = { reminderOpt = 1 }, label = { Text("Mañana") })
+            FilterChip(selected = reminderOpt == 2, onClick = { reminderOpt = 2 }, label = { Text("En 1 semana") })
         }
         if (reminderOpt > 0) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("none" to "Una vez", "daily" to "Diario", "weekly" to "Semanal").forEach { (r, l) ->
                     FilterChip(selected = repeat == r, onClick = { repeat = r }, label = { Text(l) })
                 }
             }
-            Spacer(Modifier.height(4.dp))
         }
-        Spacer(Modifier.height(4.dp))
-        Button(onClick = { save() }, enabled = !saving && titulo.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-            Text(if (saving) "Guardando…" else "Guardar")
+        Spacer(Modifier.height(14.dp))
+        Button(
+            onClick = { save() },
+            enabled = !saving && titulo.isNotBlank(),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().height(46.dp)
+        ) {
+            Text(
+                if (saving) "Guardando en la bóveda…" else "Guardar en BiblioTube",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+            )
         }
         } // Column form
         } // Card

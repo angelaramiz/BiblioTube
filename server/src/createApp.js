@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { sanitizeAppName, buildVersionKey, normalizeVersionInfo, ok, fail, DEFAULT_VERSION } from "./version.js";
-import { validateCategoryInput, validateVideoInput, sortVideos, fetchPreview } from "./vault.js";
+import { validateCategoryInput, validateVideoInput, sortVideos, fetchPreview, isAuthError } from "./vault.js";
 import { validateThumbUrl, THUMB_MAX_BYTES } from "./thumb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -84,14 +84,20 @@ export function createApp(supabaseOrFactory, options = {}) {
     return typeof raw === "string" ? raw.trim() : "";
   }
 
+  // Errores de BD en rutas de boveda: auth (401) vs resto (500 sin detalle).
+  function vaultDbError(res, error, context) {
+    if (isAuthError(error)) return res.status(401).json(fail("auth expired"));
+    console.error(`${context} error:`, error?.message ?? error);
+    return res.status(500).json(fail("internal error"));
+  }
+
   app.get("/api/categories", vaultAuth, async (req, res) => {
     try {
       const { data, error } = await req.vaultDb.from("categories").select("*").order("orden", { ascending: true });
-      if (error) return res.status(500).json(fail("internal error"));
+      if (error) return vaultDbError(res, error, "categories list");
       return res.json(ok(Array.isArray(data) ? data : []));
     } catch (err) {
-      console.error("categories list error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "categories list");
     }
   });
 
@@ -104,11 +110,10 @@ export function createApp(supabaseOrFactory, options = {}) {
     }
     try {
       const { data, error } = await req.vaultDb.from("categories").insert(row).select().single();
-      if (error || !data) return res.status(500).json(fail("internal error"));
+      if (error || !data) return vaultDbError(res, error, "categories create");
       return res.status(201).json(ok(data));
     } catch (err) {
-      console.error("categories create error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "categories create");
     }
   });
 
@@ -125,13 +130,11 @@ export function createApp(supabaseOrFactory, options = {}) {
       const { data, error } = await req.vaultDb.from("categories").update(patch).eq("id", id).select().single();
       if (!error && data) return res.json(ok(data));
       if (error && error.code !== "PGRST116") {
-        console.error("categories update error:", error?.message ?? error);
-        return res.status(500).json(fail("internal error"));
+        return vaultDbError(res, error, "categories update");
       }
       return res.status(404).json(fail("category not found"));
     } catch (err) {
-      console.error("categories update error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "categories update");
     }
   });
 
@@ -140,14 +143,13 @@ export function createApp(supabaseOrFactory, options = {}) {
     if (!id) return res.status(400).json(fail("invalid id"));
     try {
       const { data, error } = await req.vaultDb.from("categories").delete().eq("id", id).select();
-      if (error) return res.status(500).json(fail("internal error"));
+      if (error) return vaultDbError(res, error, "categories delete");
       if (!Array.isArray(data) || data.length === 0) {
         return res.status(404).json(fail("category not found"));
       }
       return res.json(ok({ deleted: true }));
     } catch (err) {
-      console.error("categories delete error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "categories delete");
     }
   });
 
@@ -159,11 +161,10 @@ export function createApp(supabaseOrFactory, options = {}) {
       q = q.order("prioridad", { ascending: false });
       q = q.order("fecha_guardado", { ascending: false });
       const { data, error } = await q;
-      if (error) return res.status(500).json(fail("internal error"));
+      if (error) return vaultDbError(res, error, "videos list");
       return res.json(ok(sortVideos(Array.isArray(data) ? data : [])));
     } catch (err) {
-      console.error("videos list error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "videos list");
     }
   });
 
@@ -176,11 +177,10 @@ export function createApp(supabaseOrFactory, options = {}) {
     }
     try {
       const { data, error } = await req.vaultDb.from("videos").insert(row).select().single();
-      if (error || !data) return res.status(500).json(fail("internal error"));
+      if (error || !data) return vaultDbError(res, error, "videos create");
       return res.status(201).json(ok(data));
     } catch (err) {
-      console.error("videos create error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "videos create");
     }
   });
 
@@ -197,13 +197,11 @@ export function createApp(supabaseOrFactory, options = {}) {
       const { data, error } = await req.vaultDb.from("videos").update(patch).eq("id", id).select().single();
       if (!error && data) return res.json(ok(data));
       if (error && error.code !== "PGRST116") {
-        console.error("videos update error:", error?.message ?? error);
-        return res.status(500).json(fail("internal error"));
+        return vaultDbError(res, error, "videos update");
       }
       return res.status(404).json(fail("video not found"));
     } catch (err) {
-      console.error("videos update error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "videos update");
     }
   });
 
@@ -212,14 +210,13 @@ export function createApp(supabaseOrFactory, options = {}) {
     if (!id) return res.status(400).json(fail("invalid id"));
     try {
       const { data, error } = await req.vaultDb.from("videos").delete().eq("id", id).select();
-      if (error) return res.status(500).json(fail("internal error"));
+      if (error) return vaultDbError(res, error, "videos delete");
       if (!Array.isArray(data) || data.length === 0) {
         return res.status(404).json(fail("video not found"));
       }
       return res.json(ok({ deleted: true }));
     } catch (err) {
-      console.error("videos delete error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
+      return vaultDbError(res, err, "videos delete");
     }
   });
 

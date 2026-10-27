@@ -10,4 +10,14 @@ object DownloadCenter {
         instance ?: synchronized(this) {
             instance ?: BtQueue(DownloaderProvider.get(context)).also { instance = it }
         }
+
+    private val links = mutableMapOf<String, Pair<String, Boolean>>()
+
+    @Synchronized
+    fun link(taskId: String, videoId: String, uploadToDrive: Boolean) {
+        links[taskId] = videoId to uploadToDrive
+    }
+
+    @Synchronized
+    fun takeLink(taskId: String): Pair<String, Boolean>? = links.remove(taskId)
 }

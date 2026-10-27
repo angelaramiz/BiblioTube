@@ -1,7 +1,10 @@
 package com.bibliotube.app.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,8 +85,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.data.VaultRepository
+import com.bibliotube.app.data.drive.DriveAccount
 import com.bibliotube.app.data.model.Category
+import com.bibliotube.app.data.model.DriveStatus
 import com.bibliotube.app.data.model.VaultVideo
+import com.bibliotube.app.downloader.DownloadCenter
+import com.bibliotube.app.work.DriveUploadWorker
 import com.bibliotube.app.work.SyncWorker
 import com.bibliotube.app.work.cancelReminder
 import com.bibliotube.app.work.scheduleReminder
@@ -94,6 +101,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+
+suspend fun startDownload(
+    context: android.content.Context,
+    repo: VaultRepository,
+    video: VaultVideo,
+    toDrive: Boolean
+) {
+    if (toDrive) {
+        repo.saveVideo(video.copy(driveStatus = DriveStatus.PENDING), isNew = false)
+        SyncWorker.enqueue(context)
+    }
+    val taskId = runCatching {
+        DownloadCenter.queue(context).enqueue(video.url)
+    }.getOrNull() ?: return
+    DownloadCenter.link(taskId, video.id, toDrive)
+    Unit
+}
 
 @Composable
 fun VaultHome(repo: VaultRepository, api: ApiClient) {
@@ -122,8 +146,30 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
     var editing by remember { mutableStateOf<VaultVideo?>(null) }
     var videoToDelete by remember { mutableStateOf<VaultVideo?>(null) }
     var downloadFor by remember { mutableStateOf<VaultVideo?>(null) }
+    var pendingDriveFor by remember { mutableStateOf<VaultVideo?>(null) }
     var syncing by remember { mutableStateOf(false) }
     var syncError by remember { mutableStateOf<String?>(null) }
+
+    val driveSignIn = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            val acct = runCatching {
+                com.google.android.gms.auth.api.signin.GoogleSignIn
+                    .getSignedInAccountFromIntent(res.data)
+                    .getResult(com.google.android.gms.common.api.ApiException::class.java)
+            }.getOrNull()
+            DriveAccount.onSignedIn(context, acct)
+            pendingDriveFor?.let { v ->
+                pendingDriveFor = null
+                scope.launch(Dispatchers.IO) {
+                    startDownload(context, repo, v, toDrive = true)
+                }
+            }
+        } else {
+            pendingDriveFor = null
+        }
+    }
 
     fun doSync() {
         syncing = true
@@ -473,10 +519,7 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
                 Button(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                com.bibliotube.app.downloader.DownloadCenter.queue(context)
-                                    .enqueue(targetVideo.url)
-                            }
+                            startDownload(context, repo, targetVideo, toDrive = false)
                         }
                         downloadFor = null
                     },
@@ -485,19 +528,18 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        repo.saveVideo(
-                            targetVideo.copy(driveStatus = com.bibliotube.app.data.model.DriveStatus.PENDING),
-                            isNew = false
-                        )
-                        SyncWorker.enqueue(context)
+                    if (DriveAccount.email(context) == null) {
+                        pendingDriveFor = targetVideo
+                        downloadFor = null
+                        (context as? Activity)?.let { act ->
+                            driveSignIn.launch(DriveAccount.signInIntent(act))
+                        }
+                    } else {
+                        scope.launch(Dispatchers.IO) {
+                            startDownload(context, repo, targetVideo, toDrive = true)
+                        }
+                        downloadFor = null
                     }
-                    android.widget.Toast.makeText(
-                        context,
-                        "Marcado para Drive: se subira al vincular tu cuenta",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    downloadFor = null
                 }) { Text("Drive") }
             }
         )

@@ -18,5 +18,5 @@
 - [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
 - [x] (2026-10-26) v1.0.8 publicada: fix textos negros en dark (LocalContentColor) + instalador verificado.
 - [x] (2026-10-26) DOC: AGENTS.md (arquitectura real + gotchas PS/Supabase/OTA/emulador), DESIGN.md (header tonal, fondos explicitos).
-- [x] (2026-10-26) v1.0.13 publicada: rediseno con logo + 401 distinguible/auto-refresh ante token caduco. Verificado en emulador.
+- [x] (2026-10-27) v1.0.14 publicada: descargas por video (Dispositivo/Drive pendiente) + esquema drive v2 + user_id JWT + 401.
 - [x] (2026-10-27) Fix sync real: backend inyecta user_id desde JWT (el INSERT iba NULL) + 401 ante PGRST30x. Desplegado en Render.

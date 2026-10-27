@@ -85,6 +85,14 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
         try { api.vaultDelete("/api/videos/$id") } catch (e: Exception) { /* sync lo reintentara si hay red */ }
     }
 
+    suspend fun setLocalPath(id: String, path: String) = withContext(Dispatchers.IO) {
+        db.videos().byId(id)?.let { db.videos().upsert(it.copy(localPath = path, dirty = true)) }
+    }
+
+    suspend fun setDriveState(id: String, status: String, fileId: String = "") = withContext(Dispatchers.IO) {
+        db.videos().byId(id)?.let { db.videos().upsert(it.copy(driveStatus = status, driveFileId = fileId, dirty = true)) }
+    }
+
     /** Pull (filas limpias) + push (filas dirty). Devuelve error o null si OK. */
     suspend fun sync(): String? = withContext(Dispatchers.IO) {
         try {

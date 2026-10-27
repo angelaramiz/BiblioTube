@@ -1,9 +1,12 @@
 package com.bibliotube.app
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -26,6 +29,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +56,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.api.SERVER_URL
+import androidx.compose.ui.text.font.FontWeight
 import com.bibliotube.app.data.SessionManager
+import com.bibliotube.app.data.drive.DriveAccount
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import com.bibliotube.app.data.VaultRepository
 import com.bibliotube.app.data.local.VaultDatabase
 import com.bibliotube.app.data.remote.AuthSession
@@ -83,8 +92,6 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
@@ -345,6 +352,29 @@ fun VaultApp(
         return second
     }
 
+    val queue = remember { com.bibliotube.app.downloader.DownloadCenter.queue(context) }
+    val dlTasks by queue.tasks.collectAsState()
+    var processedTasks by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(dlTasks) {
+        val fresh = dlTasks.values.filter {
+            it.state == com.bibliotube.downloader.BtTaskState.Done && it.id !in processedTasks
+        }
+        if (fresh.isEmpty()) return@LaunchedEffect
+        processedTasks = processedTasks + fresh.map { it.id }.toSet()
+        scope.launch(Dispatchers.IO) {
+            fresh.forEach { t ->
+                val link = com.bibliotube.app.downloader.DownloadCenter.takeLink(t.id) ?: return@forEach
+                val path = t.files.firstOrNull() ?: return@forEach
+                repo.setLocalPath(link.first, path)
+                if (link.second) {
+                    repo.setDriveState(link.first, "pending")
+                    com.bibliotube.app.work.DriveUploadWorker.enqueue(context, link.first)
+                }
+            }
+        }
+    }
+
     LaunchedEffect(session.accessToken) {
         ensureReminderChannel(context)
         // Limpieza post-instalacion: si ya corre la version descargada, borrar APKs viejos
@@ -522,6 +552,73 @@ fun VaultApp(
 }
 
 @Composable
+fun DriveLinkCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var email by remember { mutableStateOf(DriveAccount.email(context)) }
+    var busy by remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            val acct = runCatching {
+                GoogleSignIn.getSignedInAccountFromIntent(res.data)
+                    .getResult(ApiException::class.java)
+            }.getOrNull()
+            DriveAccount.onSignedIn(context, acct)
+            email = DriveAccount.email(context)
+        }
+        busy = false
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        )
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Google Drive",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            if (email != null) {
+                Text(email!!, style = MaterialTheme.typography.bodyMedium)
+                OutlinedButton(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            DriveAccount.signOut(context)
+                            withContext(Dispatchers.Main) { email = null }
+                        }
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Desvincular") }
+            } else {
+                Text(
+                    "Vincula tu cuenta para guardar videos en tu Drive.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Button(
+                    onClick = {
+                        val act = context as? Activity ?: return@Button
+                        busy = true
+                        launcher.launch(DriveAccount.signInIntent(act))
+                    },
+                    enabled = !busy,
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text(if (busy) "Abriendo…" else "Vincular Drive") }
+            }
+        }
+    }
+}
+
+@Composable
 fun SettingsTabs(
     session: AuthSession,
     themeMode: String,
@@ -624,6 +721,8 @@ fun SettingsTabs(
                     Spacer(Modifier.width(8.dp))
                     Text("Cerrar Sesión")
                 }
+
+                DriveLinkCard()
             }
 
             // Apariencia / Tema

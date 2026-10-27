@@ -58,6 +58,9 @@ describe("validateVideoInput (POST)", () => {
       prioridad: 0,
       recordatorio_at: null,
       recordatorio_repeat: "none",
+      drive_file_id: "",
+      drive_status: "none",
+      local_path: "",
     });
   });
 
@@ -116,6 +119,33 @@ describe("validateVideoInput (POST)", () => {
     // Assert
     assert.ok(!("hack" in out));
     assert.ok(!("user_id" in out));
+  });
+
+  it("acepta campos drive con defaults y valida drive_status", () => {
+    // Arrange + Act
+    const out = validateVideoInput({ titulo: "t", url: "https://a.com/x" });
+    // Assert
+    assert.equal(out.drive_file_id, "");
+    assert.equal(out.drive_status, "none");
+    assert.equal(out.local_path, "");
+    const full = validateVideoInput({
+      titulo: "t",
+      url: "https://a.com/x",
+      drive_file_id: "abc123",
+      drive_status: "done",
+      local_path: "/sdcard/x.mp4",
+    });
+    assert.equal(full.drive_file_id, "abc123");
+    assert.equal(full.drive_status, "done");
+    assert.equal(full.local_path, "/sdcard/x.mp4");
+    assert.throws(
+      () => validateVideoInput({ titulo: "t", url: "https://a.com/x", drive_status: "nube" }),
+      /drive_status/i
+    );
+    assert.throws(
+      () => validateVideoInput({ titulo: "t", url: "https://a.com/x", drive_file_id: 42 }),
+      /drive_file_id/i
+    );
   });
 
   it("modo partial (PATCH) acepta update parcial y rechaza vacio", () => {

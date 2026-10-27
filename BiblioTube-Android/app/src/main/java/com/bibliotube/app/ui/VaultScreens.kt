@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Search
@@ -61,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -119,6 +121,7 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
     var showVideoForm by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<VaultVideo?>(null) }
     var videoToDelete by remember { mutableStateOf<VaultVideo?>(null) }
+    var downloadFor by remember { mutableStateOf<VaultVideo?>(null) }
     var syncing by remember { mutableStateOf(false) }
     var syncError by remember { mutableStateOf<String?>(null) }
 
@@ -377,6 +380,7 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
                                     editing = v
                                     showVideoForm = true
                                 },
+                                onDownload = { downloadFor = v },
                                 onDelete = {
                                     videoToDelete = v
                                 }
@@ -426,6 +430,75 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
                 TextButton(onClick = { videoToDelete = null }) {
                     Text("Cancelar")
                 }
+            }
+        )
+    }
+
+    // Modal de destino de descarga: dispositivo o Drive
+    downloadFor?.let { targetVideo ->
+        var engineReady by remember { mutableStateOf(com.bibliotube.app.downloader.DownloaderProvider.isReady()) }
+        LaunchedEffect(targetVideo.id) {
+            withContext(Dispatchers.IO) {
+                com.bibliotube.app.downloader.DownloaderProvider.ensureInit(context)
+                withContext(Dispatchers.Main) {
+                    engineReady = com.bibliotube.app.downloader.DownloaderProvider.isReady()
+                }
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { downloadFor = null },
+            title = {
+                Text(
+                    "Guardar video en",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "'${targetVideo.titulo}'",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2
+                    )
+                    if (!engineReady) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Motor de descarga preparandose o no disponible en este dispositivo (requiere ARM64)…",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                com.bibliotube.app.downloader.DownloadCenter.queue(context)
+                                    .enqueue(targetVideo.url)
+                            }
+                        }
+                        downloadFor = null
+                    },
+                    enabled = engineReady
+                ) { Text("Dispositivo") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    scope.launch(Dispatchers.IO) {
+                        repo.saveVideo(
+                            targetVideo.copy(driveStatus = com.bibliotube.app.data.model.DriveStatus.PENDING),
+                            isNew = false
+                        )
+                        SyncWorker.enqueue(context)
+                    }
+                    android.widget.Toast.makeText(
+                        context,
+                        "Marcado para Drive: se subira al vincular tu cuenta",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    downloadFor = null
+                }) { Text("Drive") }
             }
         )
     }
@@ -546,6 +619,7 @@ fun FlatVideoCard(
     categories: List<Category>,
     onOpenUrl: () -> Unit,
     onEdit: () -> Unit,
+    onDownload: () -> Unit,
     onDelete: () -> Unit
 ) {
     val catName = categories.firstOrNull { it.id == video.categoryId }?.nombre
@@ -707,6 +781,19 @@ fun FlatVideoCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Descargar (dispositivo o Drive)
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Descargar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
                     // Editar
                     IconButton(
                         onClick = onEdit,

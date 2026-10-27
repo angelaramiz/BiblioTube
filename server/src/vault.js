@@ -7,6 +7,8 @@ export const PLATFORMS = Object.freeze(["youtube", "instagram", "tiktok", "otra"
 
 export const REPEAT_VALUES = Object.freeze(["none", "daily", "weekly"]);
 
+export const DRIVE_STATUSES = Object.freeze(["none", "pending", "uploading", "done", "error"]);
+
 /**
  * Detecta errores de autenticacion de Supabase/PostgREST (JWT invalido o
  * caducado) para devolver 401 en vez de 500. Nunca incluye detalle interno.
@@ -197,6 +199,29 @@ export function validateVideoInput(body, opts = {}) {
     out.recordatorio_repeat = b.recordatorio_repeat;
   } else if (!partial) {
     out.recordatorio_repeat = "none";
+  }
+
+  if ("drive_file_id" in b) {
+    if (typeof b.drive_file_id !== "string") throw new Error("invalid drive_file_id: must be string");
+    out.drive_file_id = b.drive_file_id.trim();
+  } else if (!partial) {
+    out.drive_file_id = "";
+  }
+
+  if ("drive_status" in b) {
+    if (!DRIVE_STATUSES.includes(b.drive_status)) {
+      throw new Error(`invalid drive_status: one of ${DRIVE_STATUSES.join("|")}`);
+    }
+    out.drive_status = b.drive_status;
+  } else if (!partial) {
+    out.drive_status = "none";
+  }
+
+  if ("local_path" in b) {
+    if (typeof b.local_path !== "string") throw new Error("invalid local_path: must be string");
+    out.local_path = b.local_path;
+  } else if (!partial) {
+    out.local_path = "";
   }
 
   if (partial && Object.keys(out).length === 0) {

@@ -7,6 +7,14 @@ data class Category(
     val orden: Int
 )
 
+object DriveStatus {
+    const val NONE = "none"
+    const val PENDING = "pending"
+    const val UPLOADING = "uploading"
+    const val DONE = "done"
+    const val ERROR = "error"
+}
+
 data class VaultVideo(
     val id: String,
     val categoryId: String?,
@@ -18,7 +26,10 @@ data class VaultVideo(
     val fechaGuardado: Long,
     val prioridad: Int,
     val recordatorioAt: Long?,
-    val recordatorioRepeat: String
+    val recordatorioRepeat: String,
+    val driveFileId: String = "",
+    val driveStatus: String = DriveStatus.NONE,
+    val localPath: String = ""
 )
 
 data class VideoPreview(

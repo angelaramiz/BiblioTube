@@ -56,6 +56,7 @@ import com.bibliotube.app.data.VaultRepository
 import com.bibliotube.app.data.local.VaultDatabase
 import com.bibliotube.app.data.remote.AuthSession
 import com.bibliotube.app.ui.AuthScreen
+import com.bibliotube.app.ui.DownloadsScreen
 import com.bibliotube.app.ui.VaultHome
 import com.bibliotube.app.ui.theme.BiblioTubeTheme
 import com.bibliotube.app.work.SyncWorker
@@ -68,6 +69,7 @@ import okhttp3.Request
 import java.io.File
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -78,6 +80,7 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Card
@@ -418,7 +421,8 @@ fun VaultApp(
             Box(Modifier.weight(1f)) {
                 when (tab) {
                     0 -> VaultHome(repo, api)
-                    1 -> SettingsTabs(
+                    1 -> DownloadsScreen()
+                    2 -> SettingsTabs(
                         session = session,
                         themeMode = themeMode,
                         onThemeMode = onThemeMode,
@@ -471,7 +475,30 @@ fun VaultApp(
                     onClick = { tab = 1 },
                     icon = {
                         Icon(
-                            imageVector = if (tab == 1) Icons.Filled.Settings else Icons.Outlined.Settings,
+                            imageVector = if (tab == 1) Icons.Filled.Download else Icons.Outlined.Download,
+                            contentDescription = "Descargas"
+                        )
+                    },
+                    label = {
+                        Text(
+                            "Descargas",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                )
+                NavigationBarItem(
+                    selected = tab == 2,
+                    onClick = { tab = 2 },
+                    icon = {
+                        Icon(
+                            imageVector = if (tab == 2) Icons.Filled.Settings else Icons.Outlined.Settings,
                             contentDescription = "Ajustes"
                         )
                     },

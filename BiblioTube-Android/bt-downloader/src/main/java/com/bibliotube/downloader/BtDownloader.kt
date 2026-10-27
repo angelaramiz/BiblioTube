@@ -25,6 +25,11 @@ class BtDownloader(
         Aria2c.init(context)
     }
 
+    fun isReady(): Boolean = runCatching {
+        YoutubeDL.getInstance()
+        true
+    }.getOrDefault(false)
+
     fun fetchInfo(url: String, playlistIndex: Int? = null): Result<BtVideoInfo> = runCatching {
         val req = BtRequestBuilder.infoRequest(url, playlistIndex)
         val out = YoutubeDL.getInstance().execute(req, null, null).out

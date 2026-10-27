@@ -22,6 +22,11 @@ object DownloaderProvider {
         }
     }
 
+    fun isReady(): Boolean {
+        val inst = instance ?: return false
+        return initialized && runCatching { inst.isReady() }.getOrDefault(false)
+    }
+
     fun ensureInit(context: Context) {
         if (initialized) return
         synchronized(this) {

@@ -58,3 +58,8 @@ DROP POLICY IF EXISTS "own rows" ON categories;
 CREATE POLICY "own rows" ON categories FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "own rows" ON videos;
 CREATE POLICY "own rows" ON videos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ================= Descargas + Drive (v2) =================
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS drive_file_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS drive_status TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS local_path TEXT NOT NULL DEFAULT '';

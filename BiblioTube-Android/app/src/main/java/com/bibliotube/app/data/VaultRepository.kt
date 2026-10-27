@@ -27,7 +27,10 @@ private data class RemoteVideo(
     @SerializedName("fecha_guardado") val fechaGuardado: String?,
     val prioridad: Int?,
     @SerializedName("recordatorio_at") val recordatorioAt: String?,
-    @SerializedName("recordatorio_repeat") val recordatorioRepeat: String?
+    @SerializedName("recordatorio_repeat") val recordatorioRepeat: String?,
+    @SerializedName("drive_file_id") val driveFileId: String?,
+    @SerializedName("drive_status") val driveStatus: String?,
+    @SerializedName("local_path") val localPath: String?
 )
 
 fun parseInstant(s: String?): Long = try {
@@ -131,13 +134,15 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
 
     private fun VideoEntity.toModel() = VaultVideo(
         id, categoryId, titulo, descripcion, plataforma, url, thumbnailUrl,
-        fechaGuardado, prioridad, recordatorioAt, recordatorioRepeat
+        fechaGuardado, prioridad, recordatorioAt, recordatorioRepeat,
+        driveFileId, driveStatus, localPath
     )
 
     private fun VaultVideo.toEntity(dirty: Boolean = false) = VideoEntity(
         id, categoryId, titulo, descripcion, plataforma, url, thumbnailUrl,
         fechaGuardado, prioridad, recordatorioAt, recordatorioRepeat,
-        System.currentTimeMillis(), dirty
+        System.currentTimeMillis(), dirty,
+        driveFileId, driveStatus, localPath
     )
 
     private fun VaultVideo.toPayload(): Map<String, Any?> = mapOf(
@@ -149,7 +154,10 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
         "thumbnail_url" to thumbnailUrl,
         "prioridad" to prioridad,
         "recordatorio_at" to recordatorioAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
-        "recordatorio_repeat" to recordatorioRepeat
+        "recordatorio_repeat" to recordatorioRepeat,
+        "drive_file_id" to driveFileId,
+        "drive_status" to driveStatus,
+        "local_path" to localPath
     )
 
     private fun RemoteVideo.toEntity() = VideoEntity(
@@ -165,6 +173,9 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
         recordatorioAt = recordatorioAt?.let { parseInstant(it) },
         recordatorioRepeat = recordatorioRepeat ?: "none",
         updatedAt = System.currentTimeMillis(),
-        dirty = false
+        dirty = false,
+        driveFileId = driveFileId.orEmpty(),
+        driveStatus = driveStatus ?: "none",
+        localPath = localPath.orEmpty()
     )
 }

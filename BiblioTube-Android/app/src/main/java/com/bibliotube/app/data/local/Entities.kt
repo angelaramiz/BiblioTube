@@ -38,5 +38,8 @@ data class VideoEntity(
     val recordatorioAt: Long?,
     val recordatorioRepeat: String,
     val updatedAt: Long,
-    val dirty: Boolean = false
+    val dirty: Boolean = false,
+    val driveFileId: String = "",
+    val driveStatus: String = "none",
+    val localPath: String = ""
 )

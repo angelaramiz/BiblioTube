@@ -68,16 +68,28 @@ export function createApp(supabaseOrFactory, options = {}) {
     return m ? m[1] : null;
   }
 
+  // Resuelve el uid via getUser (valida el token: invalido/caduco -> 401).
+  // Los clientes reales siempre traen auth; los mocks viejos sin auth
+  // quedan como estaban (sus tests no cubren uid).
   function vaultAuth(req, res, next) {
     const token = getBearer(req);
     if (!token) return res.status(401).json(fail("missing auth token"));
-    try {
-      req.vaultDb = toScoped(token);
-    } catch (err) {
-      console.error("vault auth error:", err?.message ?? err);
-      return res.status(500).json(fail("internal error"));
-    }
-    return next();
+    Promise.resolve()
+      .then(() => toScoped(token))
+      .then(async (client) => {
+        req.vaultDb = client;
+        if (!client.auth || typeof client.auth.getUser !== "function") {
+          return next();
+        }
+        const { data, error } = await client.auth.getUser();
+        if (error || !data?.user?.id) return res.status(401).json(fail("auth expired"));
+        req.uid = data.user.id;
+        return next();
+      })
+      .catch((err) => {
+        console.error("vault auth error:", err?.message ?? err);
+        return res.status(500).json(fail("internal error"));
+      });
   }
 
   function cleanId(raw) {
@@ -109,7 +121,7 @@ export function createApp(supabaseOrFactory, options = {}) {
       return res.status(400).json(fail(err?.message ?? "invalid category"));
     }
     try {
-      const { data, error } = await req.vaultDb.from("categories").insert(row).select().single();
+      const { data, error } = await req.vaultDb.from("categories").insert({ ...row, user_id: req.uid }).select().single();
       if (error || !data) return vaultDbError(res, error, "categories create");
       return res.status(201).json(ok(data));
     } catch (err) {
@@ -176,7 +188,7 @@ export function createApp(supabaseOrFactory, options = {}) {
       return res.status(400).json(fail(err?.message ?? "invalid video"));
     }
     try {
-      const { data, error } = await req.vaultDb.from("videos").insert(row).select().single();
+      const { data, error } = await req.vaultDb.from("videos").insert({ ...row, user_id: req.uid }).select().single();
       if (error || !data) return vaultDbError(res, error, "videos create");
       return res.status(201).json(ok(data));
     } catch (err) {

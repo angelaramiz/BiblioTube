@@ -30,7 +30,9 @@ sealed interface BtDownloadError {
 
     /** Reintentar con otro player_client solo tiene sentido para bloqueos de cliente. */
     fun worthAnotherClient(): Boolean = when (this) {
-        BotCheck, CookiesRequired, is Failed -> true
+        // "no disponible" puede ser regional: otro cliente a veces lo resuelve.
+        // android_vr/web_embedded ademas suelen saltar la restriccion de edad.
+        BotCheck, CookiesRequired, AgeRestricted, PrivateVideo, is Failed -> true
         else -> false
     }
 }

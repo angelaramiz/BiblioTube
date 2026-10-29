@@ -107,7 +107,7 @@ class BtDownloader(
     private fun youtubeClientsFor(url: String): List<String?> {
         val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull() ?: return listOf(null)
         val isYt = host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com")
-        return if (isYt) listOf("tv,web_safari", "android_vr", null) else listOf(null)
+        return if (isYt) listOf("tv,web_safari", "android_vr", "web_embedded", null) else listOf(null)
     }
 
     private fun attemptDownload(

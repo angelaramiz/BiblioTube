@@ -1,7 +1,10 @@
 package com.bibliotube.app.ui
 
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +48,39 @@ fun YoutubeCookiesCard(context: Context) {
     var showDialog by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf("") }
 
+    fun saveCookies(raw: String) {
+        val body0 = raw.trim()
+        val problem = when {
+            body0.isEmpty() -> "vacío"
+            !body0.contains("youtube.com") -> "no contiene .youtube.com"
+            !body0.lines().any { it.contains('\t') } -> "no parece formato Netscape (faltan TAB)"
+            else -> null
+        }
+        if (problem != null) {
+            Toast.makeText(context, "Cookies inválidas: $problem", Toast.LENGTH_LONG).show()
+            return
+        }
+        val body = if (body0.startsWith("# Netscape")) body0 else "# Netscape HTTP Cookie File\n$body0"
+        val dst = BtFiles.cookiesFile(context)
+        dst.parentFile?.mkdirs()
+        dst.writeText(body + "\n")
+        hasCookies = true
+        showDialog = false
+        text = ""
+        val n = body.lines().count { it.contains("youtube.com") }
+        AppLog.d("dl", "cookies importadas ($n lineas de youtube, ${body.length} bytes)")
+        Toast.makeText(context, "Cookies guardadas ($n de YouTube)", Toast.LENGTH_SHORT).show()
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                ?: throw IllegalStateException("no se pudo abrir el archivo")
+        }.onSuccess { saveCookies(it) }
+            .onFailure { Toast.makeText(context, "No se pudo leer: ${it.message}", Toast.LENGTH_LONG).show() }
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         shape = RoundedCornerShape(12.dp),
@@ -58,15 +94,26 @@ fun YoutubeCookiesCard(context: Context) {
             Spacer(Modifier.height(4.dp))
             Text(
                 if (hasCookies) "Cookies cargadas: se usan al descargar."
-                else "Opcional. Solo para videos con edad, privados o de miembros.",
+                else "Necesarias para videos con restriccion de edad, privados o de miembros.",
                 style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Exporta cookies.txt desde tu PC con la extension \"Get cookies.txt LOCALLY\" " +
+                    "(con sesion iniciada en YouTube), pasalo al telefono y elige el archivo aqui.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
+                    onClick = { picker.launch(arrayOf("text/*", "application/octet-stream")) },
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Elegir archivo") }
+                OutlinedButton(
                     onClick = { showDialog = true },
                     shape = RoundedCornerShape(8.dp)
-                ) { Text(if (hasCookies) "Reemplazar" else "Importar") }
+                ) { Text(if (hasCookies) "Pegar" else "Pegar texto") }
                 if (hasCookies) {
                     OutlinedButton(
                         onClick = {
@@ -103,28 +150,7 @@ fun YoutubeCookiesCard(context: Context) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    val raw = text.trim()
-                    val problem = when {
-                        raw.isEmpty() -> "vacío"
-                        !raw.contains("youtube.com") -> "no contiene .youtube.com"
-                        !raw.lines().any { it.contains('\t') } -> "no parece formato Netscape (faltan TAB)"
-                        else -> null
-                    }
-                    if (problem != null) {
-                        Toast.makeText(context, "Cookies inválidas: $problem", Toast.LENGTH_LONG).show()
-                        return@TextButton
-                    }
-                    val body = if (raw.startsWith("# Netscape")) raw else "# Netscape HTTP Cookie File\n$raw"
-                    val dst = BtFiles.cookiesFile(context)
-                    dst.parentFile?.mkdirs()
-                    dst.writeText(body + "\n")
-                    hasCookies = true
-                    showDialog = false
-                    text = ""
-                    AppLog.d("dl", "cookies importadas (${body.length} bytes)")
-                    Toast.makeText(context, "Cookies guardadas", Toast.LENGTH_SHORT).show()
-                }) { Text("Guardar") }
+                TextButton(onClick = { saveCookies(text) }) { Text("Guardar") }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) { Text("Cancelar") }

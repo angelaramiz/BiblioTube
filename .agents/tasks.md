@@ -31,3 +31,4 @@
 - [x] (2026-10-29) v1.0.24: fallback android_vr/web_embedded tambien para edad/regional y cookies.txt por archivo (SAF) con instrucciones en Ajustes.
 - [x] (2026-10-29) v1.0.25: la peticion de info ahora envia --cookies y aplica la cadena de clientes (antes el bloqueo por edad ocurria en fetchInfo, fuera del fallback). Cookies pasan a filesDir (no cache). Log visible: "info: clientes=... cookies=true".
 - [x] (2026-10-29) v1.0.26: login de YouTube DENTRO de la app (YoutubeLoginActivity con WebView, UA sin "wv") + export desde la BD del WebView (copiando el .db para evitar lock). Verificado en emulador: carga el login real de Google y escribe cookies.txt. Ya no hace falta PC.
+- [x] (2026-10-29) v1.0.27: con cookies la cadena pasa a clientes TV (tv_embedded -> tv_simply -> android_vr -> auto): pasan la edad y NO requieren el desafio n-sig (no hay deno/node en Android). Sin cookies sigue tv,web_safari. Verificado log "info: clientes=tv_embedded... cookies=true".

@@ -23,3 +23,4 @@
 - [x] (2026-10-27) Fix sync real: backend inyecta user_id desde JWT (el INSERT iba NULL) + 401 ante PGRST30x. Desplegado en Render.
 - [x] (2026-10-27) v1.0.16 publicada: AppLog central + init reintentable + auto-refresh E2E verificado.
 - [x] (2026-10-27) Fix sync multi-dispositivo: faltaban columnas drive_* en Supabase (PGRST204). Verificado insert/delete.
+- [x] (2026-10-29) OTA blindado: servidor publica apkSize+apkSha256 (src/apkMeta.js, 109 tests); app descarga a .part, verifica tamano+sha256+manifest e instala desde cacheDir (FileProvider cache-path). Verificado E2E en emulador: descarga+verificado y reutilizacion.

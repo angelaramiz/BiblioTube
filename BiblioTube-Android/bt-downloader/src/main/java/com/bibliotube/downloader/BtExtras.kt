@@ -7,7 +7,8 @@ import java.io.File
 data class BtCommandTemplate(val id: Long = 0, val name: String, val template: String)
 
 object BtFiles {
-    fun cookiesFile(ctx: Context): File = File(ctx.cacheDir, "bt_cookies.txt")
+    // cookies en filesDir (persistente): cacheDir puede purgarse y perder la sesion.
+    fun cookiesFile(ctx: Context): File = File(ctx.filesDir, "bt_cookies.txt")
     fun archiveFile(ctx: Context): File = File(ctx.filesDir, "bt_archive.txt")
     fun configFile(ctx: Context, taskId: String): File = File(ctx.cacheDir, "bt_cfg_$taskId.txt")
 

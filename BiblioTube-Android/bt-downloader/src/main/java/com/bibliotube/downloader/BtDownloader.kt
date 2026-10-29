@@ -45,8 +45,28 @@ class BtDownloader(
         true
     }.getOrDefault(false)
 
+    /**
+     * Info con fallback de cliente: los bloqueos (edad/bot/regional) ocurren al
+     * resolver la info, antes de descargar, asi que la cadena debe aplicar aqui.
+     */
+    fun fetchInfoResilient(url: String, playlistIndex: Int? = null): Result<BtVideoInfo> {
+        val clients = youtubeClientsFor(url)
+        val usingCookies = cookiesFile?.let { it.exists() && it.length() > 0 } == true
+        BtLog.d("info: clientes=${clients.joinToString { it ?: "auto" }} cookies=$usingCookies")
+        var last: Throwable? = null
+        for ((i, client) in clients.withIndex()) {
+            val r = fetchInfo(url, playlistIndex, client)
+            if (r.isSuccess) return r
+            last = r.exceptionOrNull()
+            val mapped = BtErrorMapper.map(last ?: RuntimeException("sin detalle"))
+            if (i == clients.lastIndex || !mapped.worthAnotherClient()) return r
+            BtLog.d("info con cliente=${client ?: "auto"} fallo (${mapped.userMessage()}), probando otro")
+        }
+        return Result.failure(last ?: IllegalStateException("sin info"))
+    }
+
     fun fetchInfo(url: String, playlistIndex: Int? = null, youtubeClient: String? = null): Result<BtVideoInfo> = runCatching {
-        val req = BtRequestBuilder.infoRequest(url, playlistIndex, youtubeClient)
+        val req = BtRequestBuilder.infoRequest(url, playlistIndex, youtubeClient, cookiesFile?.absolutePath)
         val out = YoutubeDL.getInstance().execute(req, null, null).out
         json.decodeFromString<BtVideoInfo>(out)
     }
@@ -107,7 +127,7 @@ class BtDownloader(
     private fun youtubeClientsFor(url: String): List<String?> {
         val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull() ?: return listOf(null)
         val isYt = host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com")
-        return if (isYt) listOf("tv,web_safari", "android_vr", "web_embedded", null) else listOf(null)
+        return if (isYt) listOf("tv,web_safari", "android_vr", "tv_embedded", "web_embedded", null) else listOf(null)
     }
 
     private fun attemptDownload(
@@ -119,6 +139,8 @@ class BtDownloader(
         onProgress: ((Float, Long, String) -> Unit)?,
         youtubeClient: String?,
     ): List<String> {
+        val usingCookies = cookiesFile?.let { it.exists() && it.length() > 0 } == true
+        BtLog.d("intento cliente=${youtubeClient ?: "auto"} cookies=$usingCookies")
         // 1. resolver URL real vía info (como Seal: originalUrl ?: webpageUrl)
         val info = fetchInfo(clean, options.playlistItem.takeIf { it != 0 }, youtubeClient).getOrThrow()
         if (options.useArchive && archiveFile != null && BtArchive.contains(archiveFile, info.extractor ?: info.extractorKey, info.id)) {

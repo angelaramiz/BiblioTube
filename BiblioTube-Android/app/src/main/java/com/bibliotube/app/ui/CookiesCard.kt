@@ -42,6 +42,10 @@ import java.io.File
  * Nota honesta: solo hacen falta para videos con edad/privados/miembros; el
  * "sign in to confirm you're not a bot" se corrige con yt-dlp al dia.
  */
+private fun ytCookieCount(context: Context): Int = runCatching {
+    BtFiles.cookiesFile(context).readLines().count { it.contains("youtube.com") }
+}.getOrDefault(0)
+
 @Composable
 fun YoutubeCookiesCard(context: Context) {
     var hasCookies by remember { mutableStateOf(BtFiles.cookiesFile(context).exists()) }
@@ -93,7 +97,7 @@ fun YoutubeCookiesCard(context: Context) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hasCookies) "Cookies cargadas: se usan al descargar."
+                if (hasCookies) "Cookies cargadas (${ytCookieCount(context)} lineas de YouTube): se usan al descargar."
                 else "Necesarias para videos con restriccion de edad, privados o de miembros.",
                 style = MaterialTheme.typography.bodySmall
             )

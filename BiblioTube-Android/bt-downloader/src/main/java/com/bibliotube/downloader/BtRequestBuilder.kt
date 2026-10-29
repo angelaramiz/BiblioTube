@@ -5,7 +5,12 @@ import com.yausername.youtubedl_android.YoutubeDLRequest
 // Replica fiel de DownloadUtil: addOptionsForVideoDownloads + downloadVideo (rama video).
 internal object BtRequestBuilder {
 
-    fun infoRequest(url: String, playlistIndex: Int? = null, youtubeClient: String? = null): YoutubeDLRequest =
+    fun infoRequest(
+        url: String,
+        playlistIndex: Int? = null,
+        youtubeClient: String? = null,
+        cookiesFile: String? = null,
+    ): YoutubeDLRequest =
         YoutubeDLRequest(url).apply {
             addOption("-o", BtVideoOptions.BASENAME)
             if (playlistIndex != null) {
@@ -16,6 +21,9 @@ internal object BtRequestBuilder {
             }
             addOption("--no-playlist")
             addOption("--socket-timeout", "5")
+            if (cookiesFile != null && java.io.File(cookiesFile).let { it.exists() && it.length() > 0 }) {
+                addOption("--cookies", cookiesFile)
+            }
             addYoutubeClient(youtubeClient)
         }
 

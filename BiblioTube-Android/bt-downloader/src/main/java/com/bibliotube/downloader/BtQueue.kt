@@ -65,7 +65,7 @@ class BtQueue(
         var t = _tasks.value[id] ?: return@withPermit
         try {
             _tasks.value += (id to t.copy(state = BtTaskState.FetchingInfo))
-            val info = dl.fetchInfo(t.url).getOrThrow()
+            val info = dl.fetchInfoResilient(t.url).getOrThrow()
             t = _tasks.value[id] ?: return@withPermit
             _tasks.value += (id to t.copy(state = BtTaskState.Ready))
             _tasks.value += (id to t.copy(state = BtTaskState.Running))

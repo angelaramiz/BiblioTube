@@ -189,7 +189,9 @@ fun VaultApp(
     }
 
     fun updatesDir(): File {
-        val dir = File(context.getExternalFilesDir(null), "updates")
+        // cacheDir: siempre legible por el instalador (evita bloqueos de ROM
+        // sobre /Android/data) y no consume almacenamiento externo.
+        val dir = File(context.cacheDir, "updates")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
@@ -197,9 +199,15 @@ fun VaultApp(
     fun pendingApk(versionCode: Int): File =
         File(updatesDir(), "bibliotube_update_$versionCode.apk")
 
+    fun partialApk(versionCode: Int): File =
+        File(updatesDir(), "bibliotube_update_$versionCode.apk.part")
+
     fun cleanOldApks(keepCode: Int) {
         updatesDir().listFiles()
-            ?.filter { it.name.endsWith(".apk") && it.name != "bibliotube_update_$keepCode.apk" }
+            ?.filter { f ->
+                (f.name.endsWith(".apk") || f.name.endsWith(".part")) &&
+                    !f.name.startsWith("bibliotube_update_$keepCode.apk")
+            }
             ?.forEach { it.delete() }
     }
 
@@ -220,6 +228,22 @@ fun VaultApp(
         }
     }
 
+    fun sha256Of(file: File): String? = try {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n <= 0) break
+                md.update(buf, 0, n)
+            }
+        }
+        md.digest().joinToString("") { "%02x".format(it) }
+    } catch (e: Exception) {
+        null
+    }
+
+    /** El APK declara este paquete y el versionCode esperado. */
     fun downloadedApkValid(file: File, expectedCode: Int): Boolean {
         if (!file.exists()) return false
         return try {
@@ -239,12 +263,31 @@ fun VaultApp(
         }
     }
 
+    fun apkProblem(file: File, info: com.bibliotube.app.data.AppVersionResponse): String? {
+        if (!file.exists()) return "el archivo no existe"
+        val len = file.length()
+        if (info.apkSize > 0 && len != info.apkSize) {
+            return "tamano ${len}/${info.apkSize} bytes"
+        }
+        val expected = info.apkSha256?.trim()?.lowercase()
+        if (!expected.isNullOrEmpty()) {
+            val actual = sha256Of(file)?.lowercase()
+                ?: return "no se pudo calcular sha256"
+            if (actual != expected) return "sha256 distinto"
+        }
+        return if (downloadedApkValid(file, info.versionCode)) null else "manifest invalido (paquete o versionCode)"
+    }
+
     suspend fun downloadToFile(url: String, file: File, onFrac: (Float) -> Unit) {
         val client = ApiClient(SERVER_URL).http
         val resumed = if (file.exists()) file.length() else 0L
         val builder = Request.Builder().url(url)
         if (resumed > 0) builder.header("Range", "bytes=$resumed-")
         client.newCall(builder.build()).execute().use { res ->
+            if (res.code == 416) {
+                file.delete()
+                throw RuntimeException("rango invalido, se reinicia")
+            }
             val append = res.code == 206
             if (!res.isSuccessful) throw RuntimeException("HTTP ${res.code}")
             val body = res.body ?: throw RuntimeException("respuesta vacia")
@@ -276,23 +319,27 @@ fun VaultApp(
         val existing = pendingApk(info.versionCode)
         val recorded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt("pending_update_code", -1)
-        if (recorded == info.versionCode && downloadedApkValid(existing, info.versionCode)) {
-            log("OTA: usa descarga existente v${info.versionName}")
-            installApk(existing)
-            return
-        }
-        if (existing.exists()) {
-            log("OTA: descarga previa invalida, se vuelve a descargar")
+        if (recorded == info.versionCode) {
+            val problem = apkProblem(existing, info)
+            if (problem == null) {
+                log("OTA: usa descarga verificada v${info.versionName}")
+                installApk(existing)
+                return
+            }
+            log("OTA: descarga previa descartada (${problem})")
             existing.delete()
         }
+        partialApk(info.versionCode).delete()
         val full = if (info.apkUrl.startsWith("/")) SERVER_URL.trimEnd('/') + info.apkUrl else info.apkUrl
         val url = "$full?t=${System.currentTimeMillis()}"
         isDownloading = true
         downloadProgress = 0f
+        val sizeTxt = if (info.apkSize > 0) String.format(java.util.Locale.US, "%.1f MB", info.apkSize / 1048576.0) else "tamano desconocido"
+        log("OTA: descargando v${info.versionName} ($sizeTxt)")
         scope.launch(Dispatchers.IO) {
             try {
-                val file = pendingApk(info.versionCode)
                 cleanOldApks(info.versionCode)
+                val part = partialApk(info.versionCode)
                 var lastErr: Exception? = null
                 var ok = false
                 for (attempt in 1..3) {
@@ -303,12 +350,13 @@ fun VaultApp(
                         }
                     }
                     try {
-                        downloadToFile(url, file) { frac ->
+                        downloadToFile(url, part) { frac ->
                             downloadProgress = frac
                         }
-                        if (!downloadedApkValid(file, info.versionCode)) {
-                            file.delete()
-                            throw RuntimeException("APK descargado corrupto (intento $attempt/3)")
+                        val problem = apkProblem(part, info)
+                        if (problem != null) {
+                            part.delete()
+                            throw RuntimeException("APK invalido: $problem")
                         }
                         ok = true
                         break
@@ -318,10 +366,17 @@ fun VaultApp(
                     }
                 }
                 if (!ok) throw lastErr ?: RuntimeException("descarga fallida")
+                val file = pendingApk(info.versionCode)
+                if (!part.renameTo(file)) {
+                    part.copyTo(file, overwrite = true)
+                    part.delete()
+                }
                 context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     .edit().putInt("pending_update_code", info.versionCode).apply()
                 withContext(Dispatchers.Main) {
                     isDownloading = false
+                    downloadProgress = 1f
+                    log("OTA: APK verificado (${file.length() / 1048576} MB, sha256 OK), instalando")
                     updateAvailable = null
                     installApk(file)
                 }
@@ -390,7 +445,11 @@ fun VaultApp(
             val pending = prefs.getInt("pending_update_code", -1)
             if (pending > 0 && currentVersionCode() >= pending) {
                 updatesDir().listFiles()
-                    ?.filter { it.name.endsWith(".apk") }
+                    ?.filter { it.name.endsWith(".apk") || it.name.endsWith(".part") }
+                    ?.forEach { it.delete() }
+                // Restos de versiones anteriores que descargaban a almacenamiento externo.
+                File(context.getExternalFilesDir(null), "updates").listFiles()
+                    ?.filter { it.name.endsWith(".apk") || it.name.endsWith(".part") }
                     ?.forEach { it.delete() }
                 prefs.edit().putInt("pending_update_code", -1).apply()
                 withContext(Dispatchers.Main) { log("OTA: limpieza post-instalacion v$pending") }

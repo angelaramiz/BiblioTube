@@ -4,8 +4,10 @@ import { fileURLToPath } from "url";
 import { sanitizeAppName, buildVersionKey, normalizeVersionInfo, ok, fail, DEFAULT_VERSION } from "./version.js";
 import { validateCategoryInput, validateVideoInput, sortVideos, fetchPreview, isAuthError } from "./vault.js";
 import { validateThumbUrl, THUMB_MAX_BYTES } from "./thumb.js";
+import { withApkMeta } from "./apkMeta.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_ROOT = path.join(__dirname, "..", "public");
 
 /**
  * Fabrica de app Express testeable (Supabase inyectable).
@@ -37,7 +39,9 @@ export function createApp(supabaseOrFactory, options = {}) {
       const { data, error } = await publicDb.from(TABLE).select(VAL_COL).eq(KEY_COL, key).single();
       if (error || !data) return res.json(ok({ ...DEFAULT_VERSION }));
       try {
-        return res.json(ok(normalizeVersionInfo(data[VAL_COL])));
+        // size + sha256 del APK real: el cliente verifica antes de instalar.
+        const info = await withApkMeta(normalizeVersionInfo(data[VAL_COL]), PUBLIC_ROOT);
+        return res.json(ok(info));
       } catch {
         return res.json(ok({ ...DEFAULT_VERSION }));
       }

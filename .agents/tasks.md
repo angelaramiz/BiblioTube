@@ -17,6 +17,7 @@
 - [x] (2026-10-25) Probar en emulador: install + launch OK, captura verifica UI (header, placeholder, BottomBar visible)
 - [x] (2026-10-26) Fase 0 arquitectura: SessionManager, DownloaderProvider singleton, Room exportSchema + 1.json.
 - [x] (2026-10-26) v1.0.8 publicada: fix textos negros en dark (LocalContentColor) + instalador verificado.
+- [x] (2026-10-29) v1.0.17 publicada: init yt-dlp detallado por paso (binario+ABI+espacio) para diagnosticar descargas en telefono.
 - [x] (2026-10-26) DOC: AGENTS.md (arquitectura real + gotchas PS/Supabase/OTA/emulador), DESIGN.md (header tonal, fondos explicitos).
 - [x] (2026-10-27) v1.0.14 publicada: descargas por video (Dispositivo/Drive pendiente) + esquema drive v2 + user_id JWT + 401.
 - [x] (2026-10-27) Fix sync real: backend inyecta user_id desde JWT (el INSERT iba NULL) + 401 ante PGRST30x. Desplegado en Render.

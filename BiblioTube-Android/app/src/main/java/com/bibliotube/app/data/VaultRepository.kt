@@ -168,7 +168,9 @@ class VaultRepository(
             val remoteVids = vids.data ?: emptyList()
             val remoteIds = remoteVids.map { it.id }.toSet()
             db.videos().upsertAll(
-                remoteVids.filter { it.id !in dirtyVidIds }.map { it.toEntity() }
+                remoteVids.filter { it.id !in dirtyVidIds }.map {
+                    it.toEntity(localPath = db.videos().byId(it.id)?.localPath.orEmpty())
+                }
             )
             for (v in db.videos().dirty()) {
                 val payload = v.toModel().toPayload() + mapOf<String, Any?>("id" to v.id)
@@ -232,11 +234,11 @@ class VaultRepository(
         "recordatorio_at" to recordatorioAt?.let { java.time.Instant.ofEpochMilli(it).toString() },
         "recordatorio_repeat" to recordatorioRepeat,
         "drive_file_id" to driveFileId,
-        "drive_status" to driveStatus,
-        "local_path" to localPath
+        "drive_status" to driveStatus
+        // local_path NO se sincroniza: es una ruta valida solo en este telefono.
     )
 
-    private fun RemoteVideo.toEntity() = VideoEntity(
+    private fun RemoteVideo.toEntity(localPath: String = "") = VideoEntity(
         id = id,
         categoryId = categoryId,
         titulo = titulo,

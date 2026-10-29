@@ -12,8 +12,15 @@ import java.io.File
 object BtStorage {
     const val PRIVATE_SUFFIX = "BiblioTube/.private"
 
-    fun publicDir(): File =
-        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "BiblioTube").also { it.mkdirs() }
+    /**
+     * Carpeta de destino de los videos.
+     * En Android 10+ la carpeta publica Download/ es de solo lectura sin permisos,
+     * asi que se usa la carpeta propia de la app (siempre escribible, sin permisos).
+     */
+    fun publicDir(ctx: Context): File {
+        val base = ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: ctx.filesDir
+        return File(base, "BiblioTube").also { it.mkdirs() }
+    }
 
     fun privateDir(ctx: Context): File =
         File(ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "private").also { it.mkdirs() }

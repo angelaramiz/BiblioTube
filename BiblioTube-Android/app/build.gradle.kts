@@ -31,6 +31,8 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("release")
+            // Solo para probar en emulador (x86_64); el release sigue arm64-only.
+            ndk { abiFilters.clear(); abiFilters += listOf("arm64-v8a", "x86_64") }
         }
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -40,6 +42,13 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    packaging {
+        // yt-dlp extrae python/ffmpeg desde nativeLibraryDir: las .so deben
+        // quedar desempaquetadas al instalar (AGP 8 usa extractNativeLibs=false).
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

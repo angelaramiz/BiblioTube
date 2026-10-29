@@ -483,13 +483,25 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
     // Modal de destino de descarga: dispositivo o Drive
     downloadFor?.let { targetVideo ->
         var engineReady by remember { mutableStateOf(com.bibliotube.app.downloader.DownloaderProvider.isReady()) }
-        LaunchedEffect(targetVideo.id) {
-            withContext(Dispatchers.IO) {
+        var engineError by remember { mutableStateOf(com.bibliotube.app.downloader.DownloaderProvider.failReason()) }
+        var preparing by remember { mutableStateOf(false) }
+
+        fun prepareEngine() {
+            if (preparing) return
+            preparing = true
+            engineError = null
+            scope.launch(Dispatchers.IO) {
                 com.bibliotube.app.downloader.DownloaderProvider.ensureInit(context)
                 withContext(Dispatchers.Main) {
                     engineReady = com.bibliotube.app.downloader.DownloaderProvider.isReady()
+                    engineError = com.bibliotube.app.downloader.DownloaderProvider.failReason()
+                    preparing = false
                 }
             }
+        }
+
+        LaunchedEffect(targetVideo.id) {
+            if (!com.bibliotube.app.downloader.DownloaderProvider.isReady()) prepareEngine()
         }
         AlertDialog(
             onDismissRequest = { downloadFor = null },
@@ -506,12 +518,41 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 2
                     )
-                    if (!engineReady) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Motor de descarga preparandose o no disponible en este dispositivo (requiere ARM64)…",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                    when {
+                        engineReady -> {}
+                        preparing -> {
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.height(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "Preparando el motor de descarga. La primera vez puede tardar un minuto.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        engineError != null -> {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "No se pudo preparar el motor: $engineError",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                "Descarga a Drive mientras tanto, o reintenta.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        else -> {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Motor de descarga no disponible en este dispositivo.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             },
@@ -527,20 +568,27 @@ fun VaultHome(repo: VaultRepository, api: ApiClient) {
                 ) { Text("Dispositivo") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    if (DriveAccount.email(context) == null) {
-                        pendingDriveFor = targetVideo
-                        downloadFor = null
-                        (context as? Activity)?.let { act ->
-                            driveSignIn.launch(DriveAccount.signInIntent(act))
+                Row {
+                    if (!engineReady) {
+                        TextButton(onClick = { prepareEngine() }, enabled = !preparing) {
+                            Text("Reintentar")
                         }
-                    } else {
-                        scope.launch(Dispatchers.IO) {
-                            startDownload(context, repo, targetVideo, toDrive = true)
-                        }
-                        downloadFor = null
                     }
-                }) { Text("Drive") }
+                    TextButton(onClick = {
+                        if (DriveAccount.email(context) == null) {
+                            pendingDriveFor = targetVideo
+                            downloadFor = null
+                            (context as? Activity)?.let { act ->
+                                driveSignIn.launch(DriveAccount.signInIntent(act))
+                            }
+                        } else {
+                            scope.launch(Dispatchers.IO) {
+                                startDownload(context, repo, targetVideo, toDrive = true)
+                            }
+                            downloadFor = null
+                        }
+                    }) { Text("Drive") }
+                }
             }
         )
     }

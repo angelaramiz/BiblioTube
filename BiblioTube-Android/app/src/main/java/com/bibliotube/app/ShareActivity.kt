@@ -100,7 +100,7 @@ fun QuickSaveScreen(url: String?, onDone: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val api = remember { ApiClient(SERVER_URL) }
-    val repo = remember { VaultRepository(VaultDatabase.get(context), api) }
+    val repo = remember { VaultRepository(VaultDatabase.get(context), api, context.applicationContext) }
     val categories by repo.observeCategories().collectAsState(initial = emptyList())
     var link by remember(url) { mutableStateOf(url ?: "") }
     var titulo by remember { mutableStateOf("") }

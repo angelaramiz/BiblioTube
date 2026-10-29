@@ -16,7 +16,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         return try {
             val token = SessionManager.get(applicationContext).session.value?.accessToken ?: return Result.failure()
             val api = ApiClient(SERVER_URL).also { it.authToken = token }
-            val repo = VaultRepository(VaultDatabase.get(applicationContext), api)
+            val repo = VaultRepository(VaultDatabase.get(applicationContext), api, applicationContext)
             val err = repo.sync()
             if (err != null) Result.retry() else Result.success()
         } catch (e: Exception) {

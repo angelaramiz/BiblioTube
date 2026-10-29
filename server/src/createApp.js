@@ -126,8 +126,15 @@ export function createApp(supabaseOrFactory, options = {}) {
     }
     try {
       const { data, error } = await req.vaultDb.from("categories").insert({ ...row, user_id: req.uid }).select().single();
-      if (error || !data) return vaultDbError(res, error, "categories create");
-      return res.status(201).json(ok(data));
+      if (!error && data) return res.status(201).json(ok(data));
+      // Idempotencia: el cliente reenvia el mismo id tras un corte de red.
+      if (error?.code === "23505" && row.id) {
+        const { id, ...patch } = row;
+        const upd = await req.vaultDb.from("categories").update(patch).eq("id", id).select().single();
+        if (!upd.error && upd.data) return res.json(ok(upd.data));
+        return res.status(409).json(fail("duplicate category id"));
+      }
+      return vaultDbError(res, error, "categories create");
     } catch (err) {
       return vaultDbError(res, err, "categories create");
     }
@@ -193,8 +200,15 @@ export function createApp(supabaseOrFactory, options = {}) {
     }
     try {
       const { data, error } = await req.vaultDb.from("videos").insert({ ...row, user_id: req.uid }).select().single();
-      if (error || !data) return vaultDbError(res, error, "videos create");
-      return res.status(201).json(ok(data));
+      if (!error && data) return res.status(201).json(ok(data));
+      // Idempotencia: el cliente reenvia el mismo id tras un corte de red.
+      if (error?.code === "23505" && row.id) {
+        const { id, ...patch } = row;
+        const upd = await req.vaultDb.from("videos").update(patch).eq("id", id).select().single();
+        if (!upd.error && upd.data) return res.json(ok(upd.data));
+        return res.status(409).json(fail("duplicate video id"));
+      }
+      return vaultDbError(res, error, "videos create");
     } catch (err) {
       return vaultDbError(res, err, "videos create");
     }

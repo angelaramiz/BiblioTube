@@ -308,3 +308,33 @@ describe("fetchPreview", () => {
     assert.equal(called, 0);
   });
 });
+
+// --- id del cliente (sync multi-dispositivo) ---
+describe("id provisto por el cliente", () => {
+  const UUID = "6f1c2b9e-1d3a-4c5b-9e8f-0a1b2c3d4e5f";
+
+  it("acepta id uuid en POST de video y categoria", () => {
+    const v = validateVideoInput({ id: UUID, titulo: "x", url: "https://youtu.be/abc" });
+    assert.equal(v.id, UUID);
+    const c = validateCategoryInput({ id: UUID, nombre: "Musica" });
+    assert.equal(c.id, UUID);
+  });
+
+  it("rechaza id no uuid", () => {
+    assert.throws(() => validateVideoInput({ id: "123", titulo: "x", url: "https://youtu.be/a" }), /invalid id/i);
+    assert.throws(() => validateCategoryInput({ id: "abc", nombre: "x" }), /invalid id/i);
+    assert.throws(() => validateCategoryInput({ id: 42, nombre: "x" }), /invalid id/i);
+  });
+
+  it("ignora id en PATCH (partial) para no permitir renombrar la clave", () => {
+    const out = validateVideoInput({ id: UUID, titulo: "nuevo" }, { partial: true });
+    assert.deepEqual(out, { titulo: "nuevo" });
+    const cat = validateCategoryInput({ id: UUID, nombre: "otra" }, { partial: true });
+    assert.deepEqual(cat, { nombre: "otra" });
+  });
+
+  it("sin id no lo agrega (compatibilidad con clientes viejos)", () => {
+    const v = validateVideoInput({ titulo: "x", url: "https://youtu.be/a" });
+    assert.equal("id" in v, false);
+  });
+});

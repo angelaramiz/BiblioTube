@@ -625,3 +625,78 @@ describe("GET /api/preview (sin auth)", () => {
     }
   });
 });
+
+describe("POST idempotente (sync multi-dispositivo)", () => {
+  const UID = "u-1";
+  const ID = "6f1c2b9e-1d3a-4c5b-9e8f-0a1b2c3d4e5f";
+
+  function fakeDuplicate(inserted) {
+    return {
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+      from: () => ({
+        insert: (row) => {
+          inserted.row = row;
+          return {
+            select: () => ({
+              single: async () => ({ data: null, error: { code: "23505", message: "duplicate key value" } }),
+            }),
+          };
+        },
+        update: (patch) => ({
+          eq: (col, val) => ({
+            select: () => ({
+              single: async () => ({ data: { id: val, user_id: UID, ...patch }, error: null }),
+            }),
+          }),
+        }),
+      }),
+    };
+  }
+
+  it("conserva el id del cliente al crear un video", async () => {
+    const inserted = {};
+    const app = createApp(factoryFor(fakeDuplicate(inserted), {}), { publicClient: fakeDuplicate(inserted) });
+    const server = await listen(app);
+    const port = server.address().port;
+    try {
+      const r = await req(port, "/api/videos", {
+        method: "POST",
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: ID, titulo: "x", url: "https://youtu.be/a" }),
+      });
+      assert.equal(r.status, 200);
+      assert.equal(r.body.data.id, ID);
+      assert.equal(inserted.row.id, ID);
+      assert.equal(inserted.row.user_id, UID);
+    } finally {
+      server.close();
+    }
+  });
+
+  it("reintento del mismo id no duplica: responde 200 con la fila", async () => {
+    const inserted = {};
+    const app = createApp(factoryFor(fakeDuplicate(inserted), {}));
+    const server = await listen(app);
+    const port = server.address().port;
+    try {
+      const body = JSON.stringify({ id: ID, nombre: "Musica", color: "#7C3AED" });
+      const r1 = await req(port, "/api/categories", {
+        method: "POST",
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        body,
+      });
+      const r2 = await req(port, "/api/categories", {
+        method: "POST",
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        body,
+      });
+      assert.equal(r1.status, 200);
+      assert.equal(r2.status, 200);
+      assert.equal(r1.body.data.id, ID);
+      assert.equal(r2.body.data.id, ID);
+      assert.equal(inserted.row.nombre, "Musica");
+    } finally {
+      server.close();
+    }
+  });
+});

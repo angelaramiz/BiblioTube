@@ -27,6 +27,8 @@ const TIKTOK_HOSTS = new Set(["tiktok.com", "www.tiktok.com", "vm.tiktok.com", "
 
 const COLOR_RE = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const DEFAULT_CATEGORY_COLOR = "#7C3AED";
 
 function hostOf(url) {
@@ -85,6 +87,13 @@ export function validateCategoryInput(body, opts = {}) {
   const partial = opts?.partial === true;
   const b = mustBeObject(body, "category");
   const out = {};
+  // id solo en creacion: el cliente es la fuente del id (sync multi-dispositivo).
+  if (!partial && "id" in b && b.id !== null && b.id !== undefined) {
+    if (typeof b.id !== "string" || !UUID_RE.test(b.id.trim())) {
+      throw new Error("invalid id: must be uuid");
+    }
+    out.id = b.id.trim();
+  }
   if ("nombre" in b) {
     const t = cleanText(b.nombre, 80);
     if (t === null) throw new Error("invalid nombre: 1-80 chars");
@@ -122,6 +131,14 @@ export function validateVideoInput(body, opts = {}) {
   const partial = opts?.partial === true;
   const b = mustBeObject(body, "video");
   const out = {};
+
+  // id solo en creacion: el cliente es la fuente del id (sync multi-dispositivo).
+  if (!partial && "id" in b && b.id !== null && b.id !== undefined) {
+    if (typeof b.id !== "string" || !UUID_RE.test(b.id.trim())) {
+      throw new Error("invalid id: must be uuid");
+    }
+    out.id = b.id.trim();
+  }
 
   if ("titulo" in b) {
     const t = cleanText(b.titulo, 200);

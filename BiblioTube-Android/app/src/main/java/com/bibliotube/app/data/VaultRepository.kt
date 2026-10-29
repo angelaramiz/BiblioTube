@@ -1,5 +1,6 @@
 package com.bibliotube.app.data
 
+import android.content.Context
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.data.local.CategoryEntity
 import com.bibliotube.app.data.local.VaultDatabase
@@ -38,10 +39,26 @@ fun parseInstant(s: String?): Long = try {
     else java.time.Instant.parse(s).toEpochMilli()
 } catch (e: Exception) { System.currentTimeMillis() }
 
-class VaultRepository(private val db: VaultDatabase, private val api: ApiClient) {
+class VaultRepository(
+    private val db: VaultDatabase,
+    private val api: ApiClient,
+    private val context: Context? = null,
+) {
 
     companion object {
         const val AUTH_EXPIRED = "AUTH_EXPIRED"
+        private const val DELETES_PREFS = "bibliotube_pending_deletes"
+    }
+
+    /** Borrados pendientes: si el DELETE falla, se reintenta en el proximo sync. */
+    private fun pendingDeletes(): MutableSet<String> {
+        val prefs = context?.getSharedPreferences(DELETES_PREFS, Context.MODE_PRIVATE) ?: return mutableSetOf()
+        return prefs.getStringSet("ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+    }
+
+    private fun savePendingDeletes(ids: Set<String>) {
+        val prefs = context?.getSharedPreferences(DELETES_PREFS, Context.MODE_PRIVATE) ?: return
+        prefs.edit().putStringSet("ids", ids).apply()
     }
 
     fun observeCategories(): Flow<List<Category>> =
@@ -67,22 +84,31 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
 
     suspend fun deleteCategory(id: String) = withContext(Dispatchers.IO) {
         db.categories().deleteById(id)
-        try { api.vaultDelete("/api/categories/$id") } catch (e: Exception) { /* se reintenta en sync */ }
+        val res = api.vaultDelete("/api/categories/$id")
+        if (res.error != null) {
+            val p = pendingDeletes().also { it.add("categories:$id") }
+            savePendingDeletes(p)
+            AppLog.d("sync", "borrado pendiente (categoria $id): ${res.error}")
+        }
     }
 
     suspend fun saveVideo(v: VaultVideo, isNew: Boolean): String = withContext(Dispatchers.IO) {
         db.videos().upsert(v.toEntity(dirty = true))
         if (!isNew) {
-            try {
-                api.vaultPatch<Map<String, Any>>("/api/videos/${v.id}", v.toPayload())
-            } catch (e: Exception) { /* queda dirty para el sync */ }
+            val res = api.vaultPatch<Map<String, Any>>("/api/videos/${v.id}", v.toPayload())
+            if (res.error != null) AppLog.d("sync", "edicion local pendiente: ${res.error}")
             v.id
         } else v.id
     }
 
     suspend fun deleteVideo(id: String) = withContext(Dispatchers.IO) {
         db.videos().deleteById(id)
-        try { api.vaultDelete("/api/videos/$id") } catch (e: Exception) { /* sync lo reintentara si hay red */ }
+        val res = api.vaultDelete("/api/videos/$id")
+        if (res.error != null) {
+            val p = pendingDeletes().also { it.add("videos:$id") }
+            savePendingDeletes(p)
+            AppLog.d("sync", "borrado pendiente (video $id): ${res.error}")
+        }
     }
 
     suspend fun setLocalPath(id: String, path: String) = withContext(Dispatchers.IO) {
@@ -93,9 +119,17 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
         db.videos().byId(id)?.let { db.videos().upsert(it.copy(driveStatus = status, driveFileId = fileId, dirty = true)) }
     }
 
+    /** Migracion: versiones previas marcaban "limpio" aunque el push fallara. */
+    suspend fun markAllDirty() = withContext(Dispatchers.IO) {
+        db.categories().markAllDirty()
+        db.videos().markAllDirty()
+    }
+
     /** Pull (filas limpias) + push (filas dirty). Devuelve error o null si OK. */
     suspend fun sync(): String? = withContext(Dispatchers.IO) {
         try {
+            retryPendingDeletes()
+
             val cats = api.vaultList<RemoteCategory>("/api/categories")
             if (cats.error != null) {
                 return@withContext if (api.lastHttpCode == 401) AUTH_EXPIRED else cats.error
@@ -108,13 +142,22 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
                     CategoryEntity(it.id, it.nombre, it.color ?: "#7C3AED", it.orden ?: 0, System.currentTimeMillis(), dirty = false)
                 }
             )
+            var pushFailures = 0
             for (c in db.categories().dirty()) {
-                val payload = mapOf("nombre" to c.nombre, "color" to c.color, "orden" to c.orden)
-                try {
-                    if (c.id in remoteCatIds) api.vaultPatch<Map<String, Any>>("/api/categories/${c.id}", payload)
-                    else api.vaultPost<Map<String, Any>>("/api/categories", payload)
+                val payload = mapOf<String, Any?>(
+                    "id" to c.id, "nombre" to c.nombre, "color" to c.color, "orden" to c.orden
+                )
+                val res = if (c.id in remoteCatIds) {
+                    api.vaultPatch<Map<String, Any>>("/api/categories/${c.id}", payload)
+                } else {
+                    api.vaultPost<Map<String, Any>>("/api/categories", payload)
+                }
+                if (res.error == null) {
                     db.categories().upsert(c.copy(dirty = false))
-                } catch (e: Exception) { /* sigue dirty */ }
+                } else {
+                    pushFailures++
+                    AppLog.d("sync", "categoria sin subir (${c.nombre}): ${res.error}")
+                }
             }
 
             val vids = api.vaultList<RemoteVideo>("/api/videos")
@@ -128,15 +171,40 @@ class VaultRepository(private val db: VaultDatabase, private val api: ApiClient)
                 remoteVids.filter { it.id !in dirtyVidIds }.map { it.toEntity() }
             )
             for (v in db.videos().dirty()) {
-                try {
-                    if (v.id in remoteIds) api.vaultPatch<Map<String, Any>>("/api/videos/${v.id}", v.toModel().toPayload())
-                    else api.vaultPost<Map<String, Any>>("/api/videos", v.toModel().toPayload())
+                val payload = v.toModel().toPayload() + mapOf<String, Any?>("id" to v.id)
+                val res = if (v.id in remoteIds) {
+                    api.vaultPatch<Map<String, Any>>("/api/videos/${v.id}", payload)
+                } else {
+                    api.vaultPost<Map<String, Any>>("/api/videos", payload)
+                }
+                if (res.error == null) {
                     db.videos().upsert(v.copy(dirty = false))
-                } catch (e: Exception) { /* sigue dirty */ }
+                } else {
+                    pushFailures++
+                    AppLog.d("sync", "video sin subir (${v.titulo}): ${res.error}")
+                }
             }
-            null
+            if (pushFailures > 0) "$pushFailures cambio(s) sin subir" else null
         } catch (e: Exception) {
             e.message ?: "Error de sincronizacion"
+        }
+    }
+
+    private suspend fun retryPendingDeletes() {
+        val pending = pendingDeletes()
+        if (pending.isEmpty()) return
+        val left = mutableSetOf<String>()
+        for (entry in pending) {
+            val parts = entry.split(":", limit = 2)
+            if (parts.size != 2) continue
+            val path = "/api/${parts[0]}/${parts[1]}"
+            val res = api.vaultDelete(path)
+            // 404 = ya no existe en el servidor: objetivo cumplido.
+            if (res.error != null && api.lastHttpCode != 404) left.add(entry)
+        }
+        savePendingDeletes(left)
+        if (pending.size != left.size) {
+            AppLog.d("sync", "borrados remotos aplicados: ${pending.size - left.size}")
         }
     }
 

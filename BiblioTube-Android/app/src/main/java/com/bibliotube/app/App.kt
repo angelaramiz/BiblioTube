@@ -159,7 +159,7 @@ fun VaultApp(
     val api = remember(session.accessToken) {
         ApiClient(SERVER_URL).also { it.authToken = session.accessToken }
     }
-    val repo = remember { VaultRepository(VaultDatabase.get(context), api) }
+    val repo = remember { VaultRepository(VaultDatabase.get(context), api, context.applicationContext) }
 
     fun log(msg: String) = AppLog.d("app", msg)
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
@@ -456,6 +456,13 @@ fun VaultApp(
             }
         }
         scope.launch(Dispatchers.IO) {
+            // Migracion: versiones previas marcaban limpio aunque el push fallara.
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (!prefs.getBoolean("sync_full_push_done", false)) {
+                repo.markAllDirty()
+                prefs.edit().putBoolean("sync_full_push_done", true).apply()
+                withContext(Dispatchers.Main) { log("Sync: reenviando biblioteca local (migracion)") }
+            }
             val err = syncWithAuthRetry()
             val pending = VaultDatabase.get(context).videos().pendingReminders(System.currentTimeMillis())
             withContext(Dispatchers.Main) {

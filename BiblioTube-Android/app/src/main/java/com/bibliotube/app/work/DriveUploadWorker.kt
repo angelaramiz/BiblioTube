@@ -19,7 +19,7 @@ class DriveUploadWorker(context: Context, params: WorkerParameters) : CoroutineW
         val videoId = inputData.getString("videoId") ?: return Result.failure()
         val db = VaultDatabase.get(applicationContext)
         val api = com.bibliotube.app.api.ApiClient(com.bibliotube.app.api.SERVER_URL)
-        val repo = VaultRepository(db, api)
+        val repo = VaultRepository(db, api, applicationContext)
         val video = db.videos().byId(videoId) ?: run {
             AppLog.d("drive", "video no encontrado: $videoId")
             return Result.failure()

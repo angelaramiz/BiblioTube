@@ -15,6 +15,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE dirty = 1")
     suspend fun dirty(): List<CategoryEntity>
 
+    @Query("UPDATE categories SET dirty = 1")
+    suspend fun markAllDirty()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(rows: List<CategoryEntity>)
 
@@ -41,6 +44,9 @@ interface VideoDao {
 
     @Query("SELECT * FROM videos WHERE dirty = 1")
     suspend fun dirty(): List<VideoEntity>
+
+    @Query("UPDATE videos SET dirty = 1")
+    suspend fun markAllDirty()
 
     @Query("SELECT * FROM videos WHERE recordatorioAt IS NOT NULL AND recordatorioAt > :now ORDER BY recordatorioAt ASC")
     suspend fun pendingReminders(now: Long): List<VideoEntity>

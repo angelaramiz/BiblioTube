@@ -73,4 +73,27 @@ object DownloaderProvider {
             }
         }
     }
+
+    /** Version del binario yt-dlp en uso (para diagnostico). */
+    fun version(context: Context): String? =
+        runCatching { get(context).ytDlpVersion() }.getOrNull()
+
+    /**
+     * YouTube cambia cada pocas semanas: un yt-dlp viejo acaba pidiendo
+     * "sign in to confirm you're not a bot". Se actualiza como maximo 1/dia.
+     */
+    fun updateIfStale(context: Context, force: Boolean = false) {
+        val app = context.applicationContext
+        val prefs = app.getSharedPreferences("bt", Context.MODE_PRIVATE)
+        val last = prefs.getLong("ytdlp_checked_at", 0L)
+        val day = 24L * 60 * 60 * 1000
+        if (!force && System.currentTimeMillis() - last < day) return
+        prefs.edit().putLong("ytdlp_checked_at", System.currentTimeMillis()).apply()
+        val before = version(context)
+        val ok = runCatching { get(context).updateYtDlp("nightly") }.getOrDefault(false)
+        val after = version(context)
+        com.bibliotube.app.data.AppLog.d(
+            "dl", "yt-dlp $before -> $after (actualizado=${if (ok) "si" else "no"})"
+        )
+    }
 }

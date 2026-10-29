@@ -14,7 +14,7 @@ sealed interface BtDownloadError {
         NoSpace -> "Sin espacio en destino"
         NoNetwork -> "Sin red o timeout (reintenta)"
         UnsupportedUrl -> "Sitio no soportado por yt-dlp"
-        CookiesRequired -> "Requiere cookies (edad/privado/miembro)"
+        CookiesRequired -> "YouTube pidió verificación (bot/cookies): importa cookies o reintenta"
         FfmpegMissing -> "Falta ffmpeg para mux 1080p+"
         is Failed -> msg.take(300)
     }

@@ -5,7 +5,7 @@ import com.yausername.youtubedl_android.YoutubeDLRequest
 // Replica fiel de DownloadUtil: addOptionsForVideoDownloads + downloadVideo (rama video).
 internal object BtRequestBuilder {
 
-    fun infoRequest(url: String, playlistIndex: Int? = null): YoutubeDLRequest =
+    fun infoRequest(url: String, playlistIndex: Int? = null, youtubeClient: String? = null): YoutubeDLRequest =
         YoutubeDLRequest(url).apply {
             addOption("-o", BtVideoOptions.BASENAME)
             if (playlistIndex != null) {
@@ -16,7 +16,14 @@ internal object BtRequestBuilder {
             }
             addOption("--no-playlist")
             addOption("--socket-timeout", "5")
+            addYoutubeClient(youtubeClient)
         }
+
+    /** YouTube cambia cada pocos meses: el cliente se elige por intento. */
+    internal fun YoutubeDLRequest.addYoutubeClient(client: String?) {
+        if (client.isNullOrEmpty()) return
+        addOption("--extractor-args", "youtube:player_client=$client")
+    }
 
     fun playlistRequest(url: String): YoutubeDLRequest =
         YoutubeDLRequest(url).apply {
@@ -131,7 +138,9 @@ internal object BtRequestBuilder {
         tempDir: String?,
         cookiesFile: String?,
         archiveFile: String?,
+        youtubeClient: String? = null,
     ): YoutubeDLRequest = apply {
+        addYoutubeClient(youtubeClient)
         addOption("--no-mtime")
         addOption("--retries", o.retries.coerceIn(0, 10))
         addOption("--fragment-retries", o.fragmentRetries.coerceIn(0, 10))
@@ -140,7 +149,7 @@ internal object BtRequestBuilder {
         if (o.forceIpv4) addOption("-4")
         if (o.debug) addOption("-v")
         if (o.rateLimitKb.isNotEmpty()) addOption("-r", "${o.rateLimitKb}K")
-        if (o.useCookies && cookiesFile != null) {
+        if (cookiesFile != null && java.io.File(cookiesFile).let { it.exists() && it.length() > 0 }) {
             addOption("--cookies", cookiesFile)
             if (o.userAgent.isNotEmpty()) addOption("--add-header", "User-Agent:${o.userAgent}")
         }

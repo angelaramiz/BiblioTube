@@ -10,7 +10,11 @@ class MainActivity : FragmentActivity() {
         // Canal notif + init pesado yt-dlp/ffmpeg/aria2c en IO (singleton del provider).
         com.bibliotube.downloader.BtNotifications.ensureChannel(this)
         Thread {
-            runCatching { com.bibliotube.app.downloader.DownloaderProvider.ensureInit(this) }
+            runCatching {
+                com.bibliotube.app.downloader.DownloaderProvider.ensureInit(this)
+                // yt-dlp caduca rapido frente a YouTube: mantenerlo al dia (1/dia).
+                com.bibliotube.app.downloader.DownloaderProvider.updateIfStale(this)
+            }
         }.start()
         // POST_NOTIFICATIONS Android 13+
         if (android.os.Build.VERSION.SDK_INT >= 33) {

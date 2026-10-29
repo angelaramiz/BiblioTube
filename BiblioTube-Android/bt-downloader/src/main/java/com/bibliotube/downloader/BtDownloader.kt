@@ -45,8 +45,8 @@ class BtDownloader(
         true
     }.getOrDefault(false)
 
-    fun fetchInfo(url: String, playlistIndex: Int? = null): Result<BtVideoInfo> = runCatching {
-        val req = BtRequestBuilder.infoRequest(url, playlistIndex)
+    fun fetchInfo(url: String, playlistIndex: Int? = null, youtubeClient: String? = null): Result<BtVideoInfo> = runCatching {
+        val req = BtRequestBuilder.infoRequest(url, playlistIndex, youtubeClient)
         val out = YoutubeDL.getInstance().execute(req, null, null).out
         json.decodeFromString<BtVideoInfo>(out)
     }
@@ -79,8 +79,47 @@ class BtDownloader(
         onProgress: ((Float, Long, String) -> Unit)? = null,
     ): Result<List<String>> = runCatching {
         val clean = validateBtUrl(url).getOrThrow()
+        val clients = youtubeClientsFor(clean)
+        var last: Throwable? = null
+        for ((i, client) in clients.withIndex()) {
+            try {
+                return@runCatching attemptDownload(clean, taskId, options, audioDir, audioOptions, onProgress, client)
+            } catch (t: Throwable) {
+                // Errores propios (archive/espacio) no se reintentan con otro cliente.
+                if (t is IllegalStateException) throw t
+                last = t
+                if (i == clients.lastIndex) throw t
+                val mapped = BtErrorMapper.map(t)
+                if (mapped is BtDownloadError.Canceled || mapped is BtDownloadError.NoSpace) throw t
+            }
+        }
+        throw last ?: IllegalStateException("fallo desconocido")
+    }.recoverCatching { t ->
+        if (t is IllegalStateException) throw t
+        throw IllegalStateException(BtErrorMapper.map(t).userMessage(), t)
+    }
+
+    /**
+     * YouTube cambia cada pocos meses: se prueban clientes que hoy no exigen PO Token.
+     * null = dejar que yt-dlp elija (default).
+     */
+    private fun youtubeClientsFor(url: String): List<String?> {
+        val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull() ?: return listOf(null)
+        val isYt = host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com")
+        return if (isYt) listOf("tv,web_safari", "android_vr", null) else listOf(null)
+    }
+
+    private fun attemptDownload(
+        clean: String,
+        taskId: String,
+        options: BtVideoOptions,
+        audioDir: File?,
+        audioOptions: BtAudioOptions?,
+        onProgress: ((Float, Long, String) -> Unit)?,
+        youtubeClient: String?,
+    ): List<String> {
         // 1. resolver URL real vía info (como Seal: originalUrl ?: webpageUrl)
-        val info = fetchInfo(clean, options.playlistItem.takeIf { it != 0 }).getOrThrow()
+        val info = fetchInfo(clean, options.playlistItem.takeIf { it != 0 }, youtubeClient).getOrThrow()
         if (options.useArchive && archiveFile != null && BtArchive.contains(archiveFile, info.extractor ?: info.extractorKey, info.id)) {
             throw IllegalStateException("Ya descargado (archive): ${info.extractorKey} ${info.id}")
         }
@@ -99,6 +138,7 @@ class BtDownloader(
                     tempDir?.absolutePath,
                     cookiesFile?.absolutePath,
                     archiveFile?.absolutePath,
+                    youtubeClient,
                 )
             }
         }
@@ -116,10 +156,7 @@ class BtDownloader(
         // 2. verificar salidas (título + filtro aux + tamaño>0)
         val files = BtOutput.verifyAndScan(context, outDir, info.title.ifEmpty { info.id })
         if (options.useArchive && archiveFile != null) BtArchive.mark(archiveFile, info.extractor ?: info.extractorKey, info.id)
-        files
-    }.recoverCatching { t ->
-        if (t is IllegalStateException) throw t
-        throw IllegalStateException(BtErrorMapper.map(t).userMessage(), t)
+        return files
     }
 
     /** Rama audio directa. */

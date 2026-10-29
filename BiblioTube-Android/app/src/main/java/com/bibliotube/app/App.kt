@@ -933,6 +933,10 @@ fun SettingsTabs(
                             Spacer(Modifier.width(8.dp))
                             Text("Forzar Sincronización")
                         }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        com.bibliotube.app.ui.YoutubeCookiesCard(context)
                     }
                 }
             }

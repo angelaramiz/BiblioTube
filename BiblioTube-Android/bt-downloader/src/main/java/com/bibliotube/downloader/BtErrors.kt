@@ -56,6 +56,8 @@ object BtErrorMapper {
             "not a bot" in m || "confirm you're not a bot" in m || "confirm you’re not a bot" in m ->
                 BtDownloadError.BotCheck
             "po token" in m || "po_token" in m || "sabr" in m -> BtDownloadError.BotCheck
+            "n challenge" in m || "challenge solving failed" in m || "javascript runtime" in m ->
+                BtDownloadError.BotCheck
             "unable to download" in m && "network" in m -> BtDownloadError.NoNetwork
             "429" in m || "too many requests" in m ->
                 BtDownloadError.Failed("YouTube limito las peticiones (429): espera unos minutos")

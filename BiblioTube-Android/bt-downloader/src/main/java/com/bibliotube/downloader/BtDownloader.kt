@@ -127,7 +127,15 @@ class BtDownloader(
     private fun youtubeClientsFor(url: String): List<String?> {
         val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull() ?: return listOf(null)
         val isYt = host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com")
-        return if (isYt) listOf("tv,web_safari", "android_vr", "tv_embedded", "web_embedded", null) else listOf(null)
+        if (!isYt) return listOf(null)
+        val withCookies = cookiesFile?.let { it.exists() && it.length() > 0 } == true
+        // Con sesion: los clientes TV no necesitan el desafio JS (n-sig) y
+        // tv_embedded esta pensado justo para contenido que exige cuenta.
+        return if (withCookies) {
+            listOf("tv_embedded", "tv_simply", "android_vr", null)
+        } else {
+            listOf("tv,web_safari", "android_vr", "web_embedded", null)
+        }
     }
 
     private fun attemptDownload(

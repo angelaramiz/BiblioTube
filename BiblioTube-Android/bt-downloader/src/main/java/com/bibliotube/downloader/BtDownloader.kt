@@ -20,9 +20,24 @@ class BtDownloader(
     private val json = Json { ignoreUnknownKeys = true }
 
     fun init() {
-        YoutubeDL.init(context)
-        FFmpeg.init(context)
-        Aria2c.init(context)
+        initDetailed()?.let { throw RuntimeException(it) }
+    }
+
+    /** null si OK; si no, "paso: causa". */
+    fun initDetailed(): String? {
+        val steps = listOf(
+            "youtubedl" to { YoutubeDL.init(context) },
+            "ffmpeg" to { FFmpeg.init(context) },
+            "aria2c" to { Aria2c.init(context) },
+        )
+        for ((name, run) in steps) {
+            val r = runCatching { run() }
+            if (r.isFailure) {
+                val e = r.exceptionOrNull()
+                return "$name: ${e?.javaClass?.simpleName}: ${e?.message}"
+            }
+        }
+        return null
     }
 
     fun isReady(): Boolean = runCatching {

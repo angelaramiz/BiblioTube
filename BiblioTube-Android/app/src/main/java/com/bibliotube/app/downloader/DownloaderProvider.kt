@@ -31,13 +31,16 @@ object DownloaderProvider {
         if (initialized && isReady()) return
         synchronized(this) {
             if (initialized && isReady()) return
-            val r = runCatching { get(context).init() }
-            if (r.isSuccess && runCatching { get(context).isReady() }.getOrDefault(false)) {
+            val app = context.applicationContext
+            val fail = get(context).initDetailed()
+            val info = "abi=${android.os.Build.SUPPORTED_ABIS.firstOrNull()} " +
+                "libre=${app.filesDir.usableSpace / 1024 / 1024}MB"
+            if (fail == null && runCatching { get(context).isReady() }.getOrDefault(false)) {
                 initialized = true
-                com.bibliotube.app.data.AppLog.d("dl", "motor yt-dlp listo")
+                com.bibliotube.app.data.AppLog.d("dl", "motor yt-dlp listo ($info)")
             } else {
                 initialized = false
-                com.bibliotube.app.data.AppLog.d("dl", "init fallo, reintentable: ${r.exceptionOrNull()?.message}")
+                com.bibliotube.app.data.AppLog.d("dl", "init fallo, reintentable: $fail ($info)")
             }
         }
     }

@@ -46,6 +46,10 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.YoutubeLoginActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
         <service android:name="com.bibliotube.downloader.BtDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <receiver android:name="com.bibliotube.downloader.BtCancelReceiver" android:exported="false">
             <intent-filter><action android:name="com.bibliotube.downloader.CANCEL" /></intent-filter>

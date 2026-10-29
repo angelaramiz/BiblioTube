@@ -9,25 +9,52 @@ import java.io.File
 object BtCookies {
     private const val HEADER = "# Netscape HTTP Cookie File\n"
 
+    /**
+     * Exporta las cookies del WebView interno a formato Netscape.
+     * Copia la BD antes de leerla: WebView la tiene abierta y SQLite puede bloquear.
+     */
     fun exportWebView(ctx: Context, out: File? = null): Result<File> = runCatching {
         val mgr = CookieManager.getInstance()
         mgr.flush()
-        val db = File(ctx.dataDir.resolve("app_webview/Default/Cookies").absolutePath)
-        if (!db.exists()) throw IllegalStateException("Sin DB WebView (abre un WebView primero)")
-        SQLiteDatabase.openDatabase(db.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { s ->
-            val sb = StringBuilder(HEADER)
-            s.query("cookies", arrayOf("host_key", "expires_utc", "path", "name", "value", "is_secure"), null, null, null, null, null).use { c ->
+        val src = File(ctx.dataDir, "app_webview/Default/Cookies")
+        if (!src.exists()) throw IllegalStateException("Sin sesion: inicia sesion en YouTube primero")
+
+        val copy = File(ctx.cacheDir, "bt_cookies_snapshot.db")
+        src.copyTo(copy, overwrite = true)
+        // WAL: sin estos el snapshot puede perder las escrituras recientes.
+        for (suffix in listOf("-wal", "-shm")) {
+            val extra = File(src.absolutePath + suffix)
+            if (extra.exists()) extra.copyTo(File(copy.absolutePath + suffix), overwrite = true)
+        }
+
+        val sb = StringBuilder(HEADER)
+        var total = 0
+        SQLiteDatabase.openDatabase(copy.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { s ->
+            s.query(
+                "cookies",
+                arrayOf("host_key", "expires_utc", "path", "name", "value", "is_secure"),
+                null, null, null, null, null
+            ).use { c ->
                 while (c.moveToNext()) {
-                    val host = c.getString(0); val exp = c.getLong(1) / 1000000 - 11644473600L
-                    val path = c.getString(2); val name = c.getString(3); val value = c.getString(4)
+                    val host = c.getString(0) ?: continue
+                    val exp = c.getLong(1) / 1000000 - 11644473600L
+                    val path = c.getString(2) ?: "/"
+                    val name = c.getString(3) ?: continue
+                    val value = c.getString(4) ?: ""
                     val sec = c.getInt(5) == 1
                     val h = if (host.startsWith(".")) host else ".$host"
                     sb.append("$h\tTRUE\t$path\t$sec\t$exp\t$name\t$value\n")
+                    total++
                 }
             }
-            val dst = out ?: BtFiles.cookiesFile(ctx)
-            dst.writeText(sb.toString())
-            dst
         }
+        File(copy.absolutePath).delete()
+        File(copy.absolutePath + "-wal").delete()
+        File(copy.absolutePath + "-shm").delete()
+        if (total == 0) throw IllegalStateException("El WebView no tiene cookies: inicia sesion primero")
+        val dst = out ?: BtFiles.cookiesFile(ctx)
+        dst.parentFile?.mkdirs()
+        dst.writeText(sb.toString())
+        dst
     }
 }

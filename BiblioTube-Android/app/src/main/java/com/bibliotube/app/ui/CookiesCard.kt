@@ -85,6 +85,11 @@ fun YoutubeCookiesCard(context: Context) {
             .onFailure { Toast.makeText(context, "No se pudo leer: ${it.message}", Toast.LENGTH_LONG).show() }
     }
 
+    val login = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        hasCookies = BtFiles.cookiesFile(context).exists()
+        if (hasCookies) Toast.makeText(context, "Sesion guardada", Toast.LENGTH_SHORT).show()
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         shape = RoundedCornerShape(12.dp),
@@ -103,33 +108,40 @@ fun YoutubeCookiesCard(context: Context) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Exporta cookies.txt desde tu PC con la extension \"Get cookies.txt LOCALLY\" " +
-                    "(con sesion iniciada en YouTube), pasalo al telefono y elige el archivo aqui.",
+                "Inicia sesion aqui mismo: no hace falta PC. Si prefieres, tambien puedes elegir un cookies.txt.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
+                    onClick = {
+                        login.launch(
+                            android.content.Intent(context, com.bibliotube.app.ui.YoutubeLoginActivity::class.java)
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text(if (hasCookies) "Renovar sesion" else "Iniciar sesion") }
+                OutlinedButton(
                     onClick = { picker.launch(arrayOf("text/*", "application/octet-stream")) },
                     shape = RoundedCornerShape(8.dp)
-                ) { Text("Elegir archivo") }
-                OutlinedButton(
-                    onClick = { showDialog = true },
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text(if (hasCookies) "Pegar" else "Pegar texto") }
-                if (hasCookies) {
-                    OutlinedButton(
-                        onClick = {
-                            BtFiles.cookiesFile(context).delete()
-                            hasCookies = false
-                            AppLog.d("dl", "cookies eliminadas")
-                            Toast.makeText(context, "Cookies eliminadas", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(8.dp)
-                    ) { Text("Borrar") }
-                }
+                ) { Text("Archivo") }
             }
+            if (hasCookies) {
+                TextButton(
+                    onClick = {
+                        BtFiles.cookiesFile(context).delete()
+                        hasCookies = false
+                        AppLog.d("dl", "cookies eliminadas")
+                        Toast.makeText(context, "Cookies eliminadas", Toast.LENGTH_SHORT).show()
+                    },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) { Text("Borrar cookies", style = MaterialTheme.typography.labelSmall) }
+            }
+            TextButton(
+                onClick = { showDialog = true },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+            ) { Text("o pegar el contenido de cookies.txt", style = MaterialTheme.typography.labelSmall) }
         }
     }
 

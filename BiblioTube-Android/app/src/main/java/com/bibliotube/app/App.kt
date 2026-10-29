@@ -429,6 +429,8 @@ fun VaultApp(
                     val p = api.fetchPreview(t.url)
                     if (p.error != null) {
                         AppLog.d("dl", "verificacion: sin datos publicos del video (${p.error})")
+                    } else if (p.data?.available == false) {
+                        AppLog.d("dl", "verificacion: el video no es publico (privado/eliminado/edad/bloqueado)")
                     } else {
                         AppLog.d("dl", "verificacion: el video es publico")
                     }

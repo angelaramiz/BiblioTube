@@ -268,12 +268,14 @@ export function sortVideos(rows) {
 
 const YOUTUBE_OEMBED = "https://www.youtube.com/oembed";
 
-function fallbackPreview(url) {
+function fallbackPreview(url, available = true) {
   return {
     titulo: hostOf(url) ?? String(url),
     descripcion: "",
     thumbnail_url: "",
     plataforma: detectPlatform(url),
+    // false = oEmbed no devolvio datos: video privado, eliminado, con edad o bloqueado.
+    available,
   };
 }
 
@@ -292,18 +294,19 @@ export async function fetchPreview(url, fetchImpl = globalThis.fetch) {
   try {
     const endpoint = `${YOUTUBE_OEMBED}?url=${encodeURIComponent(clean)}&format=json`;
     const res = await fetchImpl(endpoint);
-    if (!res || res.ok !== true) return fallbackPreview(clean);
+    if (!res || res.ok !== true) return fallbackPreview(clean, false);
     const data = await res.json();
     if (!data || typeof data !== "object" || typeof data.title !== "string" || data.title.trim() === "") {
-      return fallbackPreview(clean);
+      return fallbackPreview(clean, false);
     }
     return {
       titulo: data.title.trim(),
       descripcion: typeof data.author_name === "string" ? data.author_name : "",
       thumbnail_url: typeof data.thumbnail_url === "string" ? data.thumbnail_url : "",
       plataforma: "youtube",
+      available: true,
     };
   } catch {
-    return fallbackPreview(clean);
+    return fallbackPreview(clean, false);
   }
 }

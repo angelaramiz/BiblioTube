@@ -36,5 +36,7 @@ data class VideoPreview(
     val titulo: String,
     val descripcion: String,
     @com.google.gson.annotations.SerializedName("thumbnail_url") val thumbnailUrl: String,
-    val plataforma: String
+    val plataforma: String,
+    /** false = oEmbed sin datos: privado, eliminado, con edad o bloqueado. */
+    val available: Boolean = true
 )

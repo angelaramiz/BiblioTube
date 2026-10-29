@@ -253,10 +253,11 @@ describe("fetchPreview", () => {
       descripcion: "Canal",
       thumbnail_url: "https://i.ytimg.com/vi/abc/hqdefault.jpg",
       plataforma: "youtube",
+      available: true,
     });
   });
 
-  it("youtube con oEmbed caido -> fallback con dominio", async () => {
+  it("youtube con oEmbed caido -> fallback con dominio y available=false", async () => {
     // Arrange: fetch que falla
     const downFetch = async () => ({ ok: false, status: 404, json: async () => ({}) });
     // Act
@@ -267,16 +268,18 @@ describe("fetchPreview", () => {
       descripcion: "",
       thumbnail_url: "",
       plataforma: "youtube",
+      available: false,
     });
   });
 
-  it("youtube con red rota -> fallback sin lanzar", async () => {
+  it("youtube con red rota -> fallback sin lanzar y available=false", async () => {
     const brokenFetch = async () => {
       throw new Error("network down");
     };
     const out = await fetchPreview("https://www.youtube.com/watch?v=abc", brokenFetch);
     assert.equal(out.plataforma, "youtube");
     assert.equal(out.titulo, "www.youtube.com");
+    assert.equal(out.available, false);
   });
 
   it("no-youtube no llama a fetch y devuelve fallback con plataforma", async () => {

@@ -1085,10 +1085,15 @@ fun VideoFormDialog(
             withContext(Dispatchers.Main) {
                 loadingPreview = false
                 if (res.data != null) {
-                    if (titulo.isBlank()) titulo = res.data.titulo
-                    if (descripcion.isBlank()) descripcion = res.data.descripcion
-                    thumbnail = res.data.thumbnailUrl
-                    plataforma = res.data.plataforma
+                    if (res.data.available == false) {
+                        // oEmbed sin datos: privado, eliminado, con edad o bloqueado.
+                        previewError = "Sin datos del video: puede ser privado, eliminado o requerir sesion"
+                    } else {
+                        if (titulo.isBlank()) titulo = res.data.titulo
+                        if (descripcion.isBlank()) descripcion = res.data.descripcion
+                        thumbnail = res.data.thumbnailUrl
+                        plataforma = res.data.plataforma
+                    }
                 } else {
                     previewError = res.error
                 }

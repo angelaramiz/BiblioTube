@@ -24,3 +24,4 @@
 - [x] (2026-10-27) v1.0.16 publicada: AppLog central + init reintentable + auto-refresh E2E verificado.
 - [x] (2026-10-27) Fix sync multi-dispositivo: faltaban columnas drive_* en Supabase (PGRST204). Verificado insert/delete.
 - [x] (2026-10-29) OTA blindado: servidor publica apkSize+apkSha256 (src/apkMeta.js, 109 tests); app descarga a .part, verifica tamano+sha256+manifest e instala desde cacheDir (FileProvider cache-path). Verificado E2E en emulador: descarga+verificado y reutilizacion.
+- [x] (2026-10-29) Fix sync A<->B: (1) vaultPost/vaultPatch devuelven error (no lanzan) y el repo marcaba clean sin subir; (2) el servidor generaba su propio id -> PATCH/duplicados. Ahora id del cliente + POST idempotente (23505->update), errores logueados, migracion markAllDirty, borrados pendientes y local_path ya no se sincroniza. Verificado E2E: device B desde cero recibio la biblioteca (115 tests backend).

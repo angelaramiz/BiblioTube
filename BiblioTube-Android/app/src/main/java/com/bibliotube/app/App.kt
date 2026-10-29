@@ -57,6 +57,7 @@ import androidx.core.content.FileProvider
 import com.bibliotube.app.api.ApiClient
 import com.bibliotube.app.api.SERVER_URL
 import androidx.compose.ui.text.font.FontWeight
+import com.bibliotube.app.data.AppLog
 import com.bibliotube.app.data.SessionManager
 import com.bibliotube.app.data.drive.DriveAccount
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -153,14 +154,14 @@ fun VaultApp(
     var isChecking by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableFloatStateOf(0f) }
-    var logs by remember { mutableStateOf(listOf("v${com.bibliotube.app.BuildConfig.VERSION_NAME} lista.")) }
+    val logs by AppLog.lines.collectAsState()
 
     val api = remember(session.accessToken) {
         ApiClient(SERVER_URL).also { it.authToken = session.accessToken }
     }
     val repo = remember { VaultRepository(VaultDatabase.get(context), api) }
 
-    fun log(msg: String) { logs = (listOf(msg) + logs).take(50) }
+    fun log(msg: String) = AppLog.d("app", msg)
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
     fun currentVersionCode(): Int = try {
@@ -360,16 +361,22 @@ fun VaultApp(
         val fresh = dlTasks.values.filter {
             it.state == com.bibliotube.downloader.BtTaskState.Done && it.id !in processedTasks
         }
-        if (fresh.isEmpty()) return@LaunchedEffect
-        processedTasks = processedTasks + fresh.map { it.id }.toSet()
+        val failed = dlTasks.values.filter {
+            it.state == com.bibliotube.downloader.BtTaskState.Error && it.id !in processedTasks
+        }
+        if (fresh.isEmpty() && failed.isEmpty()) return@LaunchedEffect
+        processedTasks = processedTasks + (fresh + failed).map { it.id }.toSet()
+        failed.forEach { t -> AppLog.d("dl", "tarea error: ${t.url} :: ${t.error}") }
         scope.launch(Dispatchers.IO) {
             fresh.forEach { t ->
                 val link = com.bibliotube.app.downloader.DownloadCenter.takeLink(t.id) ?: return@forEach
                 val path = t.files.firstOrNull() ?: return@forEach
+                AppLog.d("dl", "completada: $path")
                 repo.setLocalPath(link.first, path)
                 if (link.second) {
                     repo.setDriveState(link.first, "pending")
                     com.bibliotube.app.work.DriveUploadWorker.enqueue(context, link.first)
+                    AppLog.d("drive", "subida encolada: ${link.first}")
                 }
             }
         }
@@ -882,7 +889,7 @@ fun SettingsTabs(
                     )
                     OutlinedButton(
                         onClick = {
-                            clipboard.setText(AnnotatedString(logs.joinToString("\n")))
+                            clipboard.setText(AnnotatedString(AppLog.text()))
                             Toast.makeText(context, "Registros copiados al portapapeles", Toast.LENGTH_LONG).show()
                         },
                         shape = RoundedCornerShape(8.dp),

@@ -28,11 +28,17 @@ object DownloaderProvider {
     }
 
     fun ensureInit(context: Context) {
-        if (initialized) return
+        if (initialized && isReady()) return
         synchronized(this) {
-            if (initialized) return
-            runCatching { get(context).init() }
-            initialized = true
+            if (initialized && isReady()) return
+            val r = runCatching { get(context).init() }
+            if (r.isSuccess && runCatching { get(context).isReady() }.getOrDefault(false)) {
+                initialized = true
+                com.bibliotube.app.data.AppLog.d("dl", "motor yt-dlp listo")
+            } else {
+                initialized = false
+                com.bibliotube.app.data.AppLog.d("dl", "init fallo, reintentable: ${r.exceptionOrNull()?.message}")
+            }
         }
     }
 }

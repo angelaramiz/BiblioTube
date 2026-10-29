@@ -28,7 +28,10 @@ fun ensureReminderChannel(context: Context) {
 
 fun scheduleReminder(context: Context, videoId: String, titulo: String, atMillis: Long, repeat: String) {
     val delay = atMillis - System.currentTimeMillis()
-    if (delay <= 0) return
+    if (delay <= 0) {
+        com.bibliotube.app.data.AppLog.d("rem", "omitido (fecha pasada): $titulo")
+        return
+    }
     val input = Data.Builder()
         .putString("videoId", videoId)
         .putString("titulo", titulo)
@@ -41,6 +44,7 @@ fun scheduleReminder(context: Context, videoId: String, titulo: String, atMillis
         .addTag("reminder_$videoId")
         .build()
     WorkManager.getInstance(context).enqueue(req)
+    com.bibliotube.app.data.AppLog.d("rem", "programado en ${delay / 60000} min [$repeat]: $titulo")
 }
 
 fun cancelReminder(context: Context, videoId: String) {
@@ -55,6 +59,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val atMillis = inputData.getLong("atMillis", 0L)
 
         ensureReminderChannel(applicationContext)
+        com.bibliotube.app.data.AppLog.d("rem", "disparado: $titulo [$repeat]")
         if (ActivityCompat.checkSelfPermission(applicationContext, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
             val notif = NotificationCompat.Builder(applicationContext, CHANNEL_REMINDERS)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)

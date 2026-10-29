@@ -29,7 +29,9 @@ class SessionManager private constructor(context: Context) {
         val current = _session.value ?: return
         if (current.accessToken.isEmpty()) return
         withContext(Dispatchers.IO) {
-            auth.refresh().onSuccess { _session.value = it }
+            auth.refresh()
+                .onSuccess { _session.value = it; AppLog.d("auth", "sesion renovada") }
+                .onFailure { AppLog.d("auth", "refresh fallo: ${it.message}") }
         }
     }
 

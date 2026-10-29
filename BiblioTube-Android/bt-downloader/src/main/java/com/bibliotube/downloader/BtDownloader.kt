@@ -19,6 +19,18 @@ class BtDownloader(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * QuickJS empaquetado como libqjs.so (extraido a nativeLibraryDir).
+     * Sin runtime JS yt-dlp no puede resolver el desafio n-sig de YouTube.
+     */
+    private val jsRuntime: String? = runCatching {
+        val f = File(context.applicationInfo.nativeLibraryDir, "libqjs.so")
+        if (!f.exists()) null else {
+            f.setExecutable(true)
+            f.absolutePath
+        }
+    }.getOrNull()
+
     fun init() {
         initDetailed()?.let { throw RuntimeException(it) }
     }
@@ -52,7 +64,7 @@ class BtDownloader(
     fun fetchInfoResilient(url: String, playlistIndex: Int? = null): Result<BtVideoInfo> {
         val clients = youtubeClientsFor(url)
         val usingCookies = cookiesFile?.let { it.exists() && it.length() > 0 } == true
-        BtLog.d("info: clientes=${clients.joinToString { it ?: "auto" }} cookies=$usingCookies")
+        BtLog.d("info: clientes=${clients.joinToString { it ?: "auto" }} cookies=$usingCookies js=${jsRuntime != null}")
         var last: Throwable? = null
         for ((i, client) in clients.withIndex()) {
             val r = fetchInfo(url, playlistIndex, client)
@@ -66,7 +78,7 @@ class BtDownloader(
     }
 
     fun fetchInfo(url: String, playlistIndex: Int? = null, youtubeClient: String? = null): Result<BtVideoInfo> = runCatching {
-        val req = BtRequestBuilder.infoRequest(url, playlistIndex, youtubeClient, cookiesFile?.absolutePath)
+        val req = BtRequestBuilder.infoRequest(url, playlistIndex, youtubeClient, cookiesFile?.absolutePath, jsRuntime)
         val out = YoutubeDL.getInstance().execute(req, null, null).out
         json.decodeFromString<BtVideoInfo>(out)
     }
@@ -132,7 +144,8 @@ class BtDownloader(
         // Con sesion: los clientes TV no necesitan el desafio JS (n-sig) y
         // tv_embedded esta pensado justo para contenido que exige cuenta.
         return if (withCookies) {
-            listOf("tv_embedded", "tv_simply", "android_vr", null)
+            // Con runtime JS, web_safari entra como ultimo recurso.
+            listOf("tv_embedded", "tv_simply", "android_vr", "web_safari", null)
         } else {
             listOf("tv,web_safari", "android_vr", "web_embedded", null)
         }
@@ -170,6 +183,7 @@ class BtDownloader(
                     cookiesFile?.absolutePath,
                     archiveFile?.absolutePath,
                     youtubeClient,
+                    jsRuntime,
                 )
             }
         }

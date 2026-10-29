@@ -10,6 +10,7 @@ internal object BtRequestBuilder {
         playlistIndex: Int? = null,
         youtubeClient: String? = null,
         cookiesFile: String? = null,
+        jsRuntime: String? = null,
     ): YoutubeDLRequest =
         YoutubeDLRequest(url).apply {
             addOption("-o", BtVideoOptions.BASENAME)
@@ -24,6 +25,7 @@ internal object BtRequestBuilder {
             if (cookiesFile != null && java.io.File(cookiesFile).let { it.exists() && it.length() > 0 }) {
                 addOption("--cookies", cookiesFile)
             }
+            addJsRuntime(jsRuntime)
             addYoutubeClient(youtubeClient)
         }
 
@@ -31,6 +33,16 @@ internal object BtRequestBuilder {
     internal fun YoutubeDLRequest.addYoutubeClient(client: String?) {
         if (client.isNullOrEmpty()) return
         addOption("--extractor-args", "youtube:player_client=$client")
+    }
+
+    /**
+     * Runtime JS para el desafio n-sig. Android no trae deno/node, asi que se
+     * empaqueta QuickJS (libqjs.so) y yt-dlp baja el solver (ejs) al vuelo.
+     */
+    internal fun YoutubeDLRequest.addJsRuntime(path: String?) {
+        if (path.isNullOrEmpty()) return
+        addOption("--js-runtimes", "quickjs:$path")
+        addOption("--remote-components", "ejs:github")
     }
 
     fun playlistRequest(url: String): YoutubeDLRequest =
@@ -147,8 +159,10 @@ internal object BtRequestBuilder {
         cookiesFile: String?,
         archiveFile: String?,
         youtubeClient: String? = null,
+        jsRuntime: String? = null,
     ): YoutubeDLRequest = apply {
         addYoutubeClient(youtubeClient)
+        addJsRuntime(jsRuntime)
         addOption("--no-mtime")
         addOption("--retries", o.retries.coerceIn(0, 10))
         addOption("--fragment-retries", o.fragmentRetries.coerceIn(0, 10))

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bibliotube.app.data.AppLog
+import com.bibliotube.downloader.BtCookies
 import com.bibliotube.downloader.BtFiles
 import java.io.File
 
@@ -72,8 +73,13 @@ fun YoutubeCookiesCard(context: Context) {
         showDialog = false
         text = ""
         val n = body.lines().count { it.contains("youtube.com") }
-        AppLog.d("dl", "cookies importadas ($n lineas de youtube, ${body.length} bytes)")
-        Toast.makeText(context, "Cookies guardadas ($n de YouTube)", Toast.LENGTH_SHORT).show()
+        val signed = BtCookies.isSignedIn(context)
+        AppLog.d("dl", "cookies importadas ($n de youtube, sesion=$signed)")
+        Toast.makeText(
+            context,
+            if (signed) "Cookies con sesion ($n de YouTube)" else "Cookies de invitado ($n): no sirven para edad/privados",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -102,8 +108,13 @@ fun YoutubeCookiesCard(context: Context) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hasCookies) "Cookies cargadas (${ytCookieCount(context)} lineas de YouTube): se usan al descargar."
-                else "Necesarias para videos con restriccion de edad, privados o de miembros.",
+                when {
+                    !hasCookies -> "Necesarias para videos con restriccion de edad, privados o de miembros."
+                    BtCookies.isSignedIn(context) ->
+                        "Sesion iniciada (${ytCookieCount(context)} cookies de YouTube): lista para descargar."
+                    else ->
+                        "Cookies sin sesion (invitado): no sirven para edad/privados. Pulsa Renovar sesion y completa el login."
+                },
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(6.dp))

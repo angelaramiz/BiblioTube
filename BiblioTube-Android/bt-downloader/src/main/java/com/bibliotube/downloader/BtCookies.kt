@@ -9,6 +9,22 @@ import java.io.File
 object BtCookies {
     private const val HEADER = "# Netscape HTTP Cookie File\n"
 
+    /** Cookies que solo existen con sesion iniciada en YouTube. */
+    private val SESSION_NAMES = listOf("SID", "HSID", "SSID", "SAPISID", "LOGIN_INFO", "__Secure-3PSID")
+
+    /**
+     * true si el cookies.txt tiene sesion real (no solo cookies de invitado).
+     * Las cookies de invitado sirven para nada en contenido con edad/privado.
+     */
+    fun isSignedIn(ctx: Context, file: File? = null): Boolean = runCatching {
+        val f = file ?: BtFiles.cookiesFile(ctx)
+        if (!f.exists() || f.length() == 0L) return false
+        val names = f.readLines().mapNotNull { line ->
+            if (line.startsWith("#") || line.isBlank()) null else line.split('\t').getOrNull(5)
+        }.toSet()
+        SESSION_NAMES.any { it in names }
+    }.getOrDefault(false)
+
     /**
      * Exporta las cookies del WebView interno a formato Netscape.
      * Copia la BD antes de leerla: WebView la tiene abierta y SQLite puede bloquear.

@@ -115,10 +115,19 @@ class YoutubeLoginActivity : Activity() {
             Handler(Looper.getMainLooper()).post {
                 r.onSuccess { f ->
                     val n = runCatching { f.readLines().count { it.contains("youtube.com") } }.getOrDefault(0)
-                    com.bibliotube.app.data.AppLog.d("dl", "cookies del WebView importadas ($n de youtube)")
-                    Toast.makeText(activity, "Cookies guardadas ($n de YouTube)", Toast.LENGTH_LONG).show()
-                    setResult(RESULT_OK)
-                    finish()
+                    val signed = BtCookies.isSignedIn(ctx, f)
+                    com.bibliotube.app.data.AppLog.d("dl", "cookies del WebView importadas ($n de youtube, sesion=$signed)")
+                    if (signed) {
+                        Toast.makeText(activity, "Sesion guardada ($n cookies de YouTube)", Toast.LENGTH_LONG).show()
+                        setResult(RESULT_OK)
+                        finish()
+                    } else {
+                        Toast.makeText(
+                            activity,
+                            "No se detecto sesion iniciada. Termina el login en la pagina y vuelve a guardar.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }.onFailure {
                     Toast.makeText(activity, it.message ?: "No se pudo guardar", Toast.LENGTH_LONG).show()
                 }

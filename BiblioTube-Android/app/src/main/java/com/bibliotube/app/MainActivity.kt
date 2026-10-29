@@ -11,6 +11,7 @@ class MainActivity : FragmentActivity() {
         com.bibliotube.downloader.BtNotifications.ensureChannel(this)
         Thread {
             runCatching {
+                com.bibliotube.downloader.BtLog.sink = { com.bibliotube.app.data.AppLog.d("dl", it) }
                 com.bibliotube.app.downloader.DownloaderProvider.ensureInit(this)
                 // yt-dlp caduca rapido frente a YouTube: mantenerlo al dia (1/dia).
                 com.bibliotube.app.downloader.DownloaderProvider.updateIfStale(this)

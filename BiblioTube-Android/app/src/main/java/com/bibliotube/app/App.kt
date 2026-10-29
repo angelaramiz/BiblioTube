@@ -422,6 +422,19 @@ fun VaultApp(
         if (fresh.isEmpty() && failed.isEmpty()) return@LaunchedEffect
         processedTasks = processedTasks + (fresh + failed).map { it.id }.toSet()
         failed.forEach { t -> AppLog.d("dl", "tarea error: ${t.url} :: ${t.error}") }
+        // Verificacion de disponibilidad: distingue "no existe/privado" de un bloqueo del motor.
+        if (failed.isNotEmpty()) {
+            scope.launch(Dispatchers.IO) {
+                failed.forEach { t ->
+                    val p = api.fetchPreview(t.url)
+                    if (p.error != null) {
+                        AppLog.d("dl", "verificacion: sin datos publicos del video (${p.error})")
+                    } else {
+                        AppLog.d("dl", "verificacion: el video es publico")
+                    }
+                }
+            }
+        }
         scope.launch(Dispatchers.IO) {
             fresh.forEach { t ->
                 val link = com.bibliotube.app.downloader.DownloadCenter.takeLink(t.id) ?: return@forEach

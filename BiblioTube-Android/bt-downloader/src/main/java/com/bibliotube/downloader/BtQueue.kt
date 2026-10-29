@@ -87,6 +87,9 @@ class BtQueue(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             val be = BtErrorMapper.map(e)
+            // Error crudo de yt-dlp (sirve para distinguir bot / edad / miembros / DRM).
+            val raw = (e.cause?.message ?: e.message ?: "").replace("\n", " ").trim()
+            BtLog.d("${be.userMessage()} :: ${raw.ifEmpty { "sin detalle" }}")
             _tasks.value[id]?.let { cur ->
                 _tasks.value += (id to cur.copy(state = BtTaskState.Error, error = be.userMessage()))
             }

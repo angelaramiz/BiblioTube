@@ -90,7 +90,8 @@ class BtDownloader(
                 last = t
                 if (i == clients.lastIndex) throw t
                 val mapped = BtErrorMapper.map(t)
-                if (mapped is BtDownloadError.Canceled || mapped is BtDownloadError.NoSpace) throw t
+                // Edad/miembros/privado no mejoran cambiando cliente: se corta ya.
+                if (!mapped.worthAnotherClient()) throw t
             }
         }
         throw last ?: IllegalStateException("fallo desconocido")
